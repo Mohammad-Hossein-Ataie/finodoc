@@ -23,6 +23,21 @@ export interface LetterCategory {
   PublisherTypes: PublisherType[];
 }
 
+export interface PublisherStatus {
+  Id: number;
+  Name: string;
+}
+
+export interface CompanyNature {
+  Id: number;
+  Name: string;
+}
+
+export interface CompanyType {
+  Id: number;
+  Name: string;
+}
+
 // نوع صنعت (Industry Types)
 export const INDUSTRY_TYPES: IndustryType[] = [
   { Id: 33, Name: "ابزارپزشکی، اپتیکی و اندازه‌گیری" },
@@ -612,4 +627,39 @@ export const LETTER_CATEGORIES: LetterCategory[] = [
       }
     ]
   }
+];
+
+// وضعیت ناشران (Publisher Status)
+export const PUBLISHER_STATUS: PublisherStatus[] = [
+  { Id: 1, Name: "همه موارد" },
+  { Id: 2, Name: "پذیرفته شده در بورس تهران" },
+  { Id: 3, Name: "پذیرفته شده در فرابورس ایران" },
+  { Id: 4, Name: "ثبت شده پذیرفته نشده" },
+  { Id: 5, Name: "ثبت نشده نزد سامان" },
+  { Id: 6, Name: "پذیرفته شده در بورس کالای ایران" },
+  { Id: 7, Name: "پذیرفته شده در بورس انرژی ایران" }
+];
+
+// ماهیت شرکت (Company Nature)
+export const COMPANY_NATURE: CompanyNature[] = [
+  { Id: 1, Name: "تولیدی" },
+  { Id: 2, Name: "ساختمانی" },
+  { Id: 3, Name: "سرمایه گذاری" },
+  { Id: 4, Name: "بانک" },
+  { Id: 5, Name: "لیزینگ" },
+  { Id: 6, Name: "خدماتی" },
+  { Id: 7, Name: "بیمه" },
+  { Id: 8, Name: "حمل و نقل دریایی" },
+  { Id: 9, Name: "کشاورزی" },
+  { Id: 10, Name: "تامین سرمایه" }
+];
+
+// نوع شرکت (Company Type)
+export const COMPANY_TYPE: CompanyType[] = [
+  { Id: 1, Name: "شرکت دولتی" },
+  { Id: 2, Name: "شرکتهای بخش عمومی و سایر" },
+  { Id: 3, Name: "ناشران" },
+  { Id: 4, Name: "نهاد عمومی" },
+  { Id: 5, Name: "نهاد مالی" },
+  { Id: 6, Name: "کارگزاران" }
 ];

@@ -4,9 +4,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Filter, Loader2 } from 'lucide-react';
-import { INDUSTRY_TYPES, LETTER_CATEGORIES } from '@/lib/filterConstants';
+import { INDUSTRY_TYPES, LETTER_CATEGORIES, PUBLISHER_STATUS, COMPANY_NATURE, COMPANY_TYPE } from '@/lib/filterConstants';
 
 interface LettersFiltersProps {
   isLoading?: boolean;
@@ -34,6 +35,9 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     letterCategoryCode: '',
     publisherTypeCode: '',
     letterTypeId: '',
+    publisherStatusId: '',
+    companyNatureId: '',
+    companyTypeId: '',
   });
 
   // Compute available publisher types based on selected category
@@ -68,6 +72,9 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
       letterCategoryCode: searchParams.get('letterCategoryCode') || '',
       publisherTypeCode: searchParams.get('publisherTypeCode') || '',
       letterTypeId: searchParams.get('letterTypeId') || '',
+      publisherStatusId: searchParams.get('publisherStatusId') || '',
+      companyNatureId: searchParams.get('companyNatureId') || '',
+      companyTypeId: searchParams.get('companyTypeId') || '',
     });
   }, [searchParams]);
 
@@ -89,6 +96,9 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     if (filters.letterCategoryCode) params.set('letterCategoryCode', filters.letterCategoryCode);
     if (filters.publisherTypeCode) params.set('publisherTypeCode', filters.publisherTypeCode);
     if (filters.letterTypeId) params.set('letterTypeId', filters.letterTypeId);
+    if (filters.publisherStatusId) params.set('publisherStatusId', filters.publisherStatusId);
+    if (filters.companyNatureId) params.set('companyNatureId', filters.companyNatureId);
+    if (filters.companyTypeId) params.set('companyTypeId', filters.companyTypeId);
     
     params.set('page', '1');
     router.push(`/letters?${params.toString()}`);
@@ -129,8 +139,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
             </div>
             <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-600">نوع صنعت:</label>
-                <select 
-                    className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                <Select 
                     value={filters.industryId}
                     onChange={(e) => setFilters({...filters, industryId: e.target.value})}
                 >
@@ -138,12 +147,47 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                     {INDUSTRY_TYPES.map(industry => (
                         <option key={industry.Id} value={industry.Id}>{industry.Name}</option>
                     ))}
-                </select>
+                </Select>
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">وضعیت ناشران:</label>
+                <Select 
+                    value={filters.publisherStatusId}
+                    onChange={(e) => setFilters({...filters, publisherStatusId: e.target.value})}
+                >
+                    <option value="">همه موارد</option>
+                    {PUBLISHER_STATUS.map(status => (
+                        <option key={status.Id} value={status.Id}>{status.Name}</option>
+                    ))}
+                </Select>
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">ماهیت شرکت:</label>
+                <Select 
+                    value={filters.companyNatureId}
+                    onChange={(e) => setFilters({...filters, companyNatureId: e.target.value})}
+                >
+                    <option value="">همه موارد</option>
+                    {COMPANY_NATURE.map(nature => (
+                        <option key={nature.Id} value={nature.Id}>{nature.Name}</option>
+                    ))}
+                </Select>
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">نوع شرکت:</label>
+                <Select 
+                    value={filters.companyTypeId}
+                    onChange={(e) => setFilters({...filters, companyTypeId: e.target.value})}
+                >
+                    <option value="">همه موارد</option>
+                    {COMPANY_TYPE.map(type => (
+                        <option key={type.Id} value={type.Id}>{type.Name}</option>
+                    ))}
+                </Select>
             </div>
             <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-600">گروه اطلاعیه:</label>
-                <select 
-                    className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                <Select 
                     value={filters.letterCategoryCode}
                     onChange={(e) => setFilters({...filters, letterCategoryCode: e.target.value, publisherTypeCode: '', letterTypeId: ''})}
                 >
@@ -151,13 +195,12 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                     {LETTER_CATEGORIES.map(category => (
                         <option key={category.Code} value={category.Code}>{category.Name}</option>
                     ))}
-                </select>
+                </Select>
             </div>
             {filters.letterCategoryCode && availablePublisherTypes.length > 0 && (
                 <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-600">نوع ناشر:</label>
-                    <select 
-                        className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    <Select 
                         value={filters.publisherTypeCode}
                         onChange={(e) => setFilters({...filters, publisherTypeCode: e.target.value, letterTypeId: ''})}
                     >
@@ -165,14 +208,13 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                         {availablePublisherTypes.map(publisher => (
                             <option key={publisher.Code} value={publisher.Code}>{publisher.Name}</option>
                         ))}
-                    </select>
+                    </Select>
                 </div>
             )}
             {filters.publisherTypeCode && availableLetterTypes.length > 0 && (
                 <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-600">نوع اطلاعیه:</label>
-                    <select 
-                        className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    <Select 
                         value={filters.letterTypeId}
                         onChange={(e) => setFilters({...filters, letterTypeId: e.target.value})}
                     >
@@ -180,7 +222,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                         {availableLetterTypes.map(letterType => (
                             <option key={letterType.Id} value={letterType.Id}>{letterType.Name}</option>
                         ))}
-                    </select>
+                    </Select>
                 </div>
             )}
 

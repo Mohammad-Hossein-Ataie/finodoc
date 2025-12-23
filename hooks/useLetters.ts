@@ -28,6 +28,8 @@ export function useLetters(params: FilterParams) {
   return useQuery({
     queryKey: ['letters', params],
     queryFn: () => fetchLetters(params),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false, // جلوگیری از ریلود با Alt+Tab
   });
 }
 

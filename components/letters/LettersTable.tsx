@@ -22,6 +22,7 @@ import { FileText, FileSpreadsheet, Paperclip, Eye, AlertTriangle, PlayCircle, M
 import { toPersianDigits, buildCodalUrl } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import ContentPlayer from '@/components/ContentPlayer';
+import { useRouter } from 'next/navigation';
 
 interface LettersTableProps {
   data: CodalLetter[];
@@ -36,6 +37,7 @@ export default function LettersTable({
   sorting,
   onSortingChange,
 }: LettersTableProps) {
+  const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<string[] | null>(null);
 
   const columns = useMemo<ColumnDef<CodalLetter>[]>(
@@ -57,7 +59,10 @@ export default function LettersTable({
                 <FileSpreadsheet className="h-4 w-4 text-green-500" />
               </a>
             ) : <div className="w-4" />}
-             <Eye className="h-4 w-4 text-gray-500 cursor-pointer hover:text-blue-500" />
+             <Eye 
+               className="h-4 w-4 text-gray-500 cursor-pointer hover:text-blue-500" 
+               onClick={() => router.push(`/letters/${row.original.tracingNo}`)}
+             />
             {/* Media Icon */}
             {row.original.tags && row.original.tags.length > 0 && (
                 <PlayCircle 
