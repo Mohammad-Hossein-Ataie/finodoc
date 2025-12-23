@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 // Removed Dialog import as the component does not exist and is not used
 import { Button } from '@/components/ui/button';
-import { Play, FileText, Music } from 'lucide-react';
+import { Play, FileText, Music, Share2, Check, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface ContentPlayerProps {
@@ -16,6 +16,7 @@ export default function ContentPlayer({ tags, isOpen, onClose }: ContentPlayerPr
   const [contents, setContents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,6 +59,33 @@ export default function ContentPlayer({ tags, isOpen, onClose }: ContentPlayerPr
     setLoading(false);
   };
 
+  const handleShare = async (content: any) => {
+    const shareData = {
+      title: content.title,
+      text: `محتوای فینوداک: ${content.title}`,
+      url: content.url
+    };
+
+    // Try Web Share API first
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        // User cancelled or error - fallback to copy
+      }
+    }
+
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(content.url);
+      setCopiedId(content._id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -94,10 +122,40 @@ export default function ContentPlayer({ tags, isOpen, onClose }: ContentPlayerPr
                             <a href={content.url} target="_blank" className="text-blue-500 underline">مشاهده فایل/متن</a>
                         )}
                     </div>
-                    <div className="mt-2 flex justify-end">
-                        <Button size="sm" variant="outline" onClick={() => {
-                            navigator.share({ title: content.title, url: content.url }).catch(() => {});
-                        }}>اشتراک گذاری</Button>
+                    <div className="mt-3 flex justify-end">
+                        <button
+                          onClick={() => handleShare(content)}
+                          className="
+                            group relative inline-flex items-center gap-2 px-4 py-2 
+                            text-sm font-medium text-gray-700 bg-white 
+                            border border-gray-300 rounded-lg 
+                            hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700
+                            transition-all duration-200 ease-in-out
+                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                          "
+                        >
+                          {copiedId === content._id ? (
+                            <>
+                              <Check className="h-4 w-4 text-green-600" />
+                              <span className="text-green-600">کپی شد!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                              <span>اشتراک‌گذاری</span>
+                            </>
+                          )}
+                          
+                          {/* Tooltip */}
+                          <span className="
+                            absolute bottom-full mb-2 left-1/2 -translate-x-1/2
+                            px-3 py-1 text-xs text-white bg-gray-900 rounded
+                            opacity-0 group-hover:opacity-100 pointer-events-none
+                            transition-opacity duration-200 whitespace-nowrap
+                          ">
+                            اشتراک یا کپی لینک
+                          </span>
+                        </button>
                     </div>
                 </div>
               </div>

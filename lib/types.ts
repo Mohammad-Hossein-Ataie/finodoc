@@ -64,6 +64,7 @@ export interface FilterParams {
   letterCode?: string;
   dateFrom?: string;
   dateTo?: string;
+  tags?: string; // comma-separated Mongo ObjectId(s)
   industryId?: string;
   letterCategoryCode?: string;
   publisherTypeCode?: string;

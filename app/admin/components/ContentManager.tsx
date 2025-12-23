@@ -4,12 +4,15 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import toast, { Toaster } from 'react-hot-toast';
+import RichTextEditor from '@/components/RichTextEditor';
 
 export default function ContentManager() {
   const [contents, setContents] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [type, setType] = useState('video');
+  const [richContent, setRichContent] = useState('');
   const [tags, setTags] = useState<any[]>([]); // Available tags
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,43 +35,80 @@ export default function ContentManager() {
   }, []);
 
   const handleUpload = async () => {
-    if (!file || !title) return;
-    setLoading(true);
-
-    // 1. Upload to S3
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const uploadRes = await fetch('/api/storage/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!uploadRes.ok) {
-        alert('Upload failed');
-        setLoading(false);
-        return;
+    if (!title) {
+      toast.error('لطفا عنوان را وارد کنید');
+      return;
     }
 
-    const { url } = await uploadRes.json();
+    // برای محتوای متنی (rich-text) فایل اجباری نیست
+    if (type !== 'rich-text' && !file) {
+      toast.error('لطفا فایل را انتخاب کنید');
+      return;
+    }
 
-    // 2. Save metadata
-    await fetch('/api/content', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    setLoading(true);
+
+    try {
+      let url = '';
+
+      // اگر فایل وجود داشته باشد، آپلود کن
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const uploadRes = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!uploadRes.ok) {
+          toast.error('خطا در آپلود فایل');
+          setLoading(false);
+          return;
+        }
+
+        const uploadData = await uploadRes.json();
+        url = uploadData.url;
+      }
+
+      // ذخیره metadata
+      const contentData: any = {
         title,
         type,
-        url,
-        tags: selectedTags
-      }),
-    });
+        tags: selectedTags,
+      };
 
-    setFile(null);
-    setTitle('');
-    setSelectedTags([]);
-    fetchContent();
-    setLoading(false);
+      // اگر نوع rich-text است، محتوای HTML را ذخیره کن
+      if (type === 'rich-text') {
+        contentData.richContent = richContent;
+      } else {
+        contentData.url = url;
+      }
+
+      const contentRes = await fetch('/api/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contentData),
+      });
+
+      if (!contentRes.ok) {
+        const errorData = await contentRes.json();
+        toast.error(`خطا در ذخیره محتوا: ${errorData.details || errorData.error}`);
+        setLoading(false);
+        return;
+      }
+
+      toast.success('محتوا با موفقیت ذخیره شد');
+      setFile(null);
+      setTitle('');
+      setRichContent('');
+      setSelectedTags([]);
+      fetchContent();
+    } catch (error: any) {
+      toast.error(`خطا: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleTag = (id: string) => {
@@ -81,6 +121,7 @@ export default function ContentManager() {
 
   return (
     <div>
+      <Toaster position="top-center" reverseOrder={false} />
       <h2 className="text-xl font-bold mb-4">مدیریت محتوا</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -101,12 +142,23 @@ export default function ContentManager() {
                 <option value="audio">صوت</option>
                 <option value="text">متن</option>
                 <option value="pdf">PDF</option>
+                <option value="image">تصویر</option>
+                <option value="rich-text">متن غنی (Rich Text)</option>
             </select>
           </div>
-          <div>
-            <label className="block text-sm mb-1">فایل</label>
-            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          </div>
+          
+          {/* اگر نوع rich-text انتخاب شد، ویرایشگر متن را نشان بده */}
+          {type === 'rich-text' ? (
+            <div>
+              <label className="block text-sm mb-1">محتوای متنی</label>
+              <RichTextEditor value={richContent} onChange={setRichContent} />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm mb-1">فایل</label>
+              <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            </div>
+          )}
           
           <div>
             <label className="block text-sm mb-1">تگ‌ها</label>
@@ -123,8 +175,8 @@ export default function ContentManager() {
             </div>
           </div>
 
-          <Button onClick={handleUpload} disabled={loading || !file}>
-            {loading ? 'در حال آپلود...' : 'آپلود و ذخیره'}
+          <Button onClick={handleUpload} disabled={loading || (type !== 'rich-text' && !file)}>
+            {loading ? 'در حال ذخیره...' : 'ذخیره محتوا'}
           </Button>
         </div>
 
@@ -142,7 +194,11 @@ export default function ContentManager() {
                                 ))}
                             </div>
                         </div>
-                        <a href={c.url} target="_blank" className="text-blue-500 text-sm">مشاهده</a>
+                        {c.type === 'rich-text' ? (
+                            <span className="text-sm text-green-600">متن غنی</span>
+                        ) : (
+                            <a href={c.url} target="_blank" className="text-blue-500 text-sm">مشاهده</a>
+                        )}
                     </div>
                 </Card>
             ))}

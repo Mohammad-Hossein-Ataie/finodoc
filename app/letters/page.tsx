@@ -36,6 +36,7 @@ export default function LettersPage() {
     letterCode: searchParams.get('letterCode') || undefined,
     symbol: searchParams.get('symbol') || undefined,
     companyName: searchParams.get('companyName') || undefined,
+    tags: searchParams.get('tags') || undefined,
     industryId: searchParams.get('industryId') || undefined,
     letterCategoryCode: searchParams.get('letterCategoryCode') || undefined,
     publisherTypeCode: searchParams.get('publisherTypeCode') || undefined,

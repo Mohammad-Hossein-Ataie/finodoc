@@ -9,6 +9,12 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Filter, Loader2 } from 'lucide-react';
 import { INDUSTRY_TYPES, LETTER_CATEGORIES, PUBLISHER_STATUS, COMPANY_NATURE, COMPANY_TYPE } from '@/lib/filterConstants';
 
+type TagItem = {
+    _id: string;
+    name: string;
+    group?: string;
+};
+
 interface LettersFiltersProps {
   isLoading?: boolean;
 }
@@ -17,7 +23,9 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // State for filters
+    const [availableTags, setAvailableTags] = useState<TagItem[]>([]);
+    const [tagsLoading, setTagsLoading] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     symbol: '',
     companyName: '',
@@ -29,6 +37,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     hasPdf: false,
     hasExcel: false,
     hasAttachment: false,
+        tags: [] as string[],
     dateFrom: '',
     dateTo: '',
     industryId: '',
@@ -39,6 +48,46 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     companyNatureId: '',
     companyTypeId: '',
   });
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadTags = async () => {
+            setTagsLoading(true);
+            try {
+                const res = await fetch('/api/tags');
+                if (!res.ok) return;
+                const data = (await res.json()) as any[];
+                if (cancelled) return;
+                const normalized: TagItem[] = Array.isArray(data)
+                    ? data
+                            .map((t) => ({
+                                _id: t?._id?.toString?.() ?? String(t?._id ?? ''),
+                                name: String(t?.name ?? ''),
+                                group: t?.group ? String(t.group) : undefined,
+                            }))
+                            .filter((t) => t._id && t.name)
+                    : [];
+                setAvailableTags(normalized);
+            } finally {
+                if (!cancelled) setTagsLoading(false);
+            }
+        };
+
+        loadTags();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+  // Filter tags based on search query
+  const filteredTags = useMemo(() => {
+    if (!tagSearchQuery.trim()) return availableTags;
+    const query = tagSearchQuery.toLowerCase();
+    return availableTags.filter(tag => 
+      tag.name.toLowerCase().includes(query)
+    );
+  }, [availableTags, tagSearchQuery]);
 
   // Compute available publisher types based on selected category
   const availablePublisherTypes = useMemo(() => {
@@ -55,6 +104,12 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
   }, [filters.publisherTypeCode, availablePublisherTypes]);
 
   useEffect(() => {
+        const tagsParam = searchParams.get('tags') || '';
+        const tagIds = tagsParam
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+
     setFilters({
       symbol: searchParams.get('symbol') || '',
       companyName: searchParams.get('companyName') || '',
@@ -66,6 +121,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
       hasPdf: searchParams.get('hasPdf') === 'true',
       hasExcel: searchParams.get('hasExcel') === 'true',
       hasAttachment: searchParams.get('hasAttachment') === 'true',
+            tags: tagIds,
       dateFrom: searchParams.get('dateFrom') || '',
       dateTo: searchParams.get('dateTo') || '',
       industryId: searchParams.get('industryId') || '',
@@ -90,6 +146,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     if (filters.hasPdf) params.set('hasPdf', 'true');
     if (filters.hasExcel) params.set('hasExcel', 'true');
     if (filters.hasAttachment) params.set('hasAttachment', 'true');
+        if (filters.tags.length > 0) params.set('tags', filters.tags.join(','));
     if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.set('dateTo', filters.dateTo);
     if (filters.industryId) params.set('industryId', filters.industryId);
@@ -233,6 +290,67 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                     value={filters.title}
                     onChange={(e) => setFilters({...filters, title: e.target.value})}
                 />
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-600">تگ‌ها:</label>
+                <div className="space-y-2">
+                    {/* Search Input */}
+                    <Input 
+                        className="h-8 text-xs bg-white" 
+                        placeholder="جستجوی تگ..."
+                        value={tagSearchQuery}
+                        onChange={(e) => setTagSearchQuery(e.target.value)}
+                    />
+                    
+                    {/* Tags as Chips */}
+                    <div className="rounded border border-gray-200 bg-gray-50 p-2 max-h-48 overflow-y-auto">
+                        {tagsLoading ? (
+                            <div className="text-xs text-gray-500 text-center py-2">در حال بارگذاری...</div>
+                        ) : filteredTags.length === 0 ? (
+                            <div className="text-xs text-gray-500 text-center py-2">
+                                {tagSearchQuery ? 'تگی با این نام یافت نشد' : 'تگی موجود نیست'}
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {filteredTags.map((tag) => {
+                                    const isActive = filters.tags.includes(tag._id);
+                                    return (
+                                        <button
+                                            key={tag._id}
+                                            type="button"
+                                            onClick={() => {
+                                                const next = isActive
+                                                    ? filters.tags.filter((id) => id !== tag._id)
+                                                    : [...filters.tags, tag._id];
+                                                setFilters({ ...filters, tags: next });
+                                            }}
+                                            className={`
+                                                px-3 py-1.5 rounded-full text-xs font-medium
+                                                transition-all duration-200 ease-in-out
+                                                border-2 cursor-pointer select-none
+                                                ${
+                                                    isActive
+                                                        ? 'bg-blue-500 text-white border-blue-600 shadow-md hover:bg-blue-600 hover:shadow-lg transform hover:scale-105'
+                                                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                                }
+                                            `}
+                                        >
+                                            {tag.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Selected Tags Counter */}
+                    {filters.tags.length > 0 && (
+                        <div className="text-xs text-gray-600 bg-blue-50 rounded px-2 py-1">
+                            {filters.tags.length} تگ انتخاب شده
+                        </div>
+                    )}
+                </div>
             </div>
             <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-600">شماره پیگیری:</label>
