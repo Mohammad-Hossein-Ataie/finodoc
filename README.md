@@ -35,13 +35,8 @@
    ```bash
    cp .env.example .env.local
    ```
-   
-   محتوای `.env.local`:
-   ```env
-   MONGODB_URI=mongodb://root:FE1r2rodUsZyQ6O0UxDWAGQ7@matterhorn.liara.cloud:32082/my-app?authSource=admin
-   DB_NAME=my-app
-   COLLECTION_NAME=codal_letters
-   ```
+
+   نکته: مقدارهای واقعی (پسورد/کلیدها) را داخل ریپو قرار ندهید.
 
 4. **اجرای پروژه**:
    ```bash
@@ -85,3 +80,29 @@ db.codal_letters.createIndex({ title: "text", companyName: "text", symbol: "text
 - **Table**: TanStack Table
 - **Database**: MongoDB
 - **Icons**: Lucide React
+
+## متغیرهای محیطی
+
+حداقل موارد لازم (در `.env.local`):
+
+```env
+# MongoDB
+MONGODB_URI=mongodb://<user>:<pass>@<host>:<port>/<db>?authSource=admin
+DB_NAME=my-app
+COLLECTION_NAME=codal_letters
+
+# Auth
+JWT_SECRET=change_me_to_a_long_random_string
+
+# SMS (OTP)
+PAYAMAK_USER=
+PAYAMAK_PASS=
+PAYAMAK_FROM=
+
+# S3 Compatible (Liara)
+LIARA_ENDPOINT=https://storage.c2.liara.space
+LIARA_BUCKET_NAME=
+LIARA_ACCESS_KEY=
+LIARA_SECRET_KEY=
+NEXT_PUBLIC_LIARA_BASE_URL=https://storage.c2.liara.space/<bucket>
+```

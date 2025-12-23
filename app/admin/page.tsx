@@ -18,13 +18,13 @@ export default function AdminDashboard() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.user || data.user.role !== 'admin') {
-          router.push('/login');
+          router.push('/admin/login');
         } else {
           setUser(data.user);
         }
         setLoading(false);
       })
-      .catch(() => router.push('/login'));
+      .catch(() => router.push('/admin/login'));
   }, [router]);
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
