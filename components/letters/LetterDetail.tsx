@@ -98,6 +98,26 @@ export default function LetterDetail({ letter }: { letter: CodalLetter }) {
               )}
             </CardFooter>
           </Card>
+
+          {/* CODAL Preview Box */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">نمایش صفحه کدال</CardTitle>
+              <CardDescription>
+                پیش‌نمایش مستقیم صفحه اطلاعیه در کدال
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative w-full h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+                <iframe
+                  src={buildCodalUrl(letter.url)}
+                  className="absolute inset-0 w-full h-full"
+                  title="CODAL Letter Preview"
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
