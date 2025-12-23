@@ -28,6 +28,7 @@ export interface CodalLetter {
   underSupervision: number;
   url: string;
   xbrlUrl: string;
+  tags?: string[];
 }
 
 export interface PaginatedResponse<T> {
@@ -63,4 +64,8 @@ export interface FilterParams {
   letterCode?: string;
   dateFrom?: string;
   dateTo?: string;
+  industryId?: string;
+  letterCategoryCode?: string;
+  publisherTypeCode?: string;
+  letterTypeId?: string;
 }

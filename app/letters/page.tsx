@@ -36,9 +36,13 @@ export default function LettersPage() {
     letterCode: searchParams.get('letterCode') || undefined,
     symbol: searchParams.get('symbol') || undefined,
     companyName: searchParams.get('companyName') || undefined,
+    industryId: searchParams.get('industryId') || undefined,
+    letterCategoryCode: searchParams.get('letterCategoryCode') || undefined,
+    publisherTypeCode: searchParams.get('publisherTypeCode') || undefined,
+    letterTypeId: searchParams.get('letterTypeId') || undefined,
   };
 
-  const { data, isLoading, isError } = useLetters(filters);
+  const { data, isLoading, isError, isFetching } = useLetters(filters);
 
   // Sorting state for the table
   const [sorting, setSorting] = useState<SortingState>([
@@ -66,25 +70,27 @@ export default function LettersPage() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <aside className="lg:col-span-1">
-        <LettersFilters />
-      </aside>
-      <div className="lg:col-span-3 space-y-4">
-        <LettersTable
-          data={data?.items || []}
-          isLoading={isLoading}
-          sorting={sorting}
-          onSortingChange={handleSortingChange}
-        />
-        {data && (
-            <Pagination
-                page={data.page}
-                totalPages={data.totalPages}
-                totalCount={data.totalCount}
-                onPageChange={handlePageChange}
+    <div className="container mx-auto p-4 max-w-[1600px]">
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+        <aside className="w-full md:w-72 flex-shrink-0 sticky top-4">
+            <LettersFilters isLoading={isLoading || isFetching} />
+        </aside>
+        <main className="flex-1 min-w-0 space-y-4">
+            <LettersTable
+            data={data?.items || []}
+            isLoading={isLoading || isFetching}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
             />
-        )}
+            {data && (
+                <Pagination
+                    page={data.page}
+                    totalPages={data.totalPages}
+                    totalCount={data.totalCount}
+                    onPageChange={handlePageChange}
+                />
+            )}
+        </main>
       </div>
     </div>
   );

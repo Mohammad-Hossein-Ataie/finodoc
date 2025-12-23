@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { FilterParams } from '@/lib/types';
+import { ObjectId } from 'mongodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,6 +25,11 @@ export async function GET(request: NextRequest) {
     const letterCode = searchParams.get('letterCode');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
+    const tags = searchParams.get('tags');
+    const industryId = searchParams.get('industryId');
+    const letterCategoryCode = searchParams.get('letterCategoryCode');
+    const publisherTypeCode = searchParams.get('publisherTypeCode');
+    const letterTypeId = searchParams.get('letterTypeId');
 
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME);
@@ -60,6 +66,17 @@ export async function GET(request: NextRequest) {
     if (symbol) query.symbol = symbol;
     if (companyName) query.companyName = companyName;
     if (letterCode) query.letterCode = letterCode;
+
+    if (tags) {
+        const tagIds = tags.split(',').map(id => new ObjectId(id));
+        query.tags = { $all: tagIds };
+    }
+
+    // New Filters for industry and letter types
+    if (industryId) query.industryId = parseInt(industryId);
+    if (letterCategoryCode) query.letterCategoryCode = parseInt(letterCategoryCode);
+    if (publisherTypeCode) query.publisherTypeCode = parseInt(publisherTypeCode);
+    if (letterTypeId) query.letterTypeId = parseInt(letterTypeId);
 
     // Date Range Filter
     // Prefer publishDateTimeUtc if available, else fetchedAt
@@ -117,7 +134,8 @@ export async function GET(request: NextRequest) {
             hasAttachment: 1,
             hasXbrl: 1,
             underSupervision: 1,
-            isEstimate: 1
+            isEstimate: 1,
+            tags: 1
         }) // Projection for list view
         .toArray(),
       collection.countDocuments(query)

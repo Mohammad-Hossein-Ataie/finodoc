@@ -28,7 +28,6 @@ export function useLetters(params: FilterParams) {
   return useQuery({
     queryKey: ['letters', params],
     queryFn: () => fetchLetters(params),
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching new
   });
 }
 

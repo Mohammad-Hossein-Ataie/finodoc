@@ -1,111 +1,279 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useFacets } from '@/hooks/useLetters';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { formatNumber } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Filter, Loader2 } from 'lucide-react';
+import { INDUSTRY_TYPES, LETTER_CATEGORIES } from '@/lib/filterConstants';
 
-// I'll create simple Checkbox and Label components inline or use standard inputs if I don't want to create more files.
-// Let's use standard inputs for now to save time, styled to look good.
+interface LettersFiltersProps {
+  isLoading?: boolean;
+}
 
-export default function LettersFilters() {
+export default function LettersFilters({ isLoading }: LettersFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: facets } = useFacets();
 
-  const updateFilter = (key: string, value: string | boolean | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value === null || value === false || value === '') {
-      params.delete(key);
-    } else {
-      params.set(key, value.toString());
-    }
-    params.set('page', '1'); // Reset page
+  // State for filters
+  const [filters, setFilters] = useState({
+    symbol: '',
+    companyName: '',
+    title: '',
+    letterCode: '',
+    tracingNo: '',
+    isEstimate: false,
+    underSupervision: false,
+    hasPdf: false,
+    hasExcel: false,
+    hasAttachment: false,
+    dateFrom: '',
+    dateTo: '',
+    industryId: '',
+    letterCategoryCode: '',
+    publisherTypeCode: '',
+    letterTypeId: '',
+  });
+
+  // Compute available publisher types based on selected category
+  const availablePublisherTypes = useMemo(() => {
+    if (!filters.letterCategoryCode) return [];
+    const category = LETTER_CATEGORIES.find(c => c.Code.toString() === filters.letterCategoryCode);
+    return category?.PublisherTypes || [];
+  }, [filters.letterCategoryCode]);
+
+  // Compute available letter types based on selected publisher
+  const availableLetterTypes = useMemo(() => {
+    if (!filters.publisherTypeCode) return [];
+    const publisherType = availablePublisherTypes.find(p => p.Code.toString() === filters.publisherTypeCode);
+    return publisherType?.LetterTypes || [];
+  }, [filters.publisherTypeCode, availablePublisherTypes]);
+
+  useEffect(() => {
+    setFilters({
+      symbol: searchParams.get('symbol') || '',
+      companyName: searchParams.get('companyName') || '',
+      title: searchParams.get('q') || '',
+      letterCode: searchParams.get('letterCode') || '',
+      tracingNo: searchParams.get('tracingNo') || '',
+      isEstimate: searchParams.get('isEstimate') === 'true',
+      underSupervision: searchParams.get('underSupervision') === '1',
+      hasPdf: searchParams.get('hasPdf') === 'true',
+      hasExcel: searchParams.get('hasExcel') === 'true',
+      hasAttachment: searchParams.get('hasAttachment') === 'true',
+      dateFrom: searchParams.get('dateFrom') || '',
+      dateTo: searchParams.get('dateTo') || '',
+      industryId: searchParams.get('industryId') || '',
+      letterCategoryCode: searchParams.get('letterCategoryCode') || '',
+      publisherTypeCode: searchParams.get('publisherTypeCode') || '',
+      letterTypeId: searchParams.get('letterTypeId') || '',
+    });
+  }, [searchParams]);
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (filters.symbol) params.set('symbol', filters.symbol);
+    if (filters.companyName) params.set('companyName', filters.companyName);
+    if (filters.title) params.set('q', filters.title);
+    if (filters.letterCode) params.set('letterCode', filters.letterCode);
+    if (filters.tracingNo) params.set('tracingNo', filters.tracingNo);
+    if (filters.isEstimate) params.set('isEstimate', 'true');
+    if (filters.underSupervision) params.set('underSupervision', '1');
+    if (filters.hasPdf) params.set('hasPdf', 'true');
+    if (filters.hasExcel) params.set('hasExcel', 'true');
+    if (filters.hasAttachment) params.set('hasAttachment', 'true');
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.set('dateTo', filters.dateTo);
+    if (filters.industryId) params.set('industryId', filters.industryId);
+    if (filters.letterCategoryCode) params.set('letterCategoryCode', filters.letterCategoryCode);
+    if (filters.publisherTypeCode) params.set('publisherTypeCode', filters.publisherTypeCode);
+    if (filters.letterTypeId) params.set('letterTypeId', filters.letterTypeId);
+    
+    params.set('page', '1');
     router.push(`/letters?${params.toString()}`);
   };
 
-  const filters = [
-    { key: 'hasPdf', label: 'دارای PDF', count: facets?.hasPdf },
-    { key: 'hasExcel', label: 'دارای Excel', count: facets?.hasExcel },
-    { key: 'underSupervision', label: 'تحت نظارت', count: facets?.underSupervision, value: '1' },
-    { key: 'isEstimate', label: 'تخمین سود', value: 'true' },
-    { key: 'hasAttachment', label: 'دارای پیوست' },
-    { key: 'hasHtml', label: 'دارای HTML' },
-    { key: 'hasXbrl', label: 'دارای XBRL' },
-  ];
-
   const clearFilters = () => {
-      router.push('/letters');
-  }
+    router.push('/letters');
+  };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">فیلترها</CardTitle>
-            {(searchParams.toString().length > 0 && searchParams.get('page') !== searchParams.toString().split('=')[1]) && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-0 text-xs text-muted-foreground hover:text-primary">
-                    حذف همه
-                </Button>
+    <Card className="h-fit bg-white border border-gray-200 shadow-sm">
+      <CardHeader className="p-4 border-b bg-gray-50">
+        <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-[#2c3e50] font-bold">
+                <Filter className="w-5 h-5" />
+                <span>فیلترهای جستجو</span>
+            </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 space-y-4">
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">نماد:</label>
+                <Input 
+                    className="h-9 text-sm bg-white" 
+                    placeholder="نماد شرکت را جستجو کنید..." 
+                    value={filters.symbol}
+                    onChange={(e) => setFilters({...filters, symbol: e.target.value})}
+                />
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">نام شرکت:</label>
+                <Input 
+                    className="h-9 text-sm bg-white" 
+                    placeholder="نام شرکت را جستجو کنید..." 
+                    value={filters.companyName}
+                    onChange={(e) => setFilters({...filters, companyName: e.target.value})}
+                />
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">نوع صنعت:</label>
+                <select 
+                    className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    value={filters.industryId}
+                    onChange={(e) => setFilters({...filters, industryId: e.target.value})}
+                >
+                    <option value="">همه موارد</option>
+                    {INDUSTRY_TYPES.map(industry => (
+                        <option key={industry.Id} value={industry.Id}>{industry.Name}</option>
+                    ))}
+                </select>
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">گروه اطلاعیه:</label>
+                <select 
+                    className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    value={filters.letterCategoryCode}
+                    onChange={(e) => setFilters({...filters, letterCategoryCode: e.target.value, publisherTypeCode: '', letterTypeId: ''})}
+                >
+                    <option value="">همه موارد</option>
+                    {LETTER_CATEGORIES.map(category => (
+                        <option key={category.Code} value={category.Code}>{category.Name}</option>
+                    ))}
+                </select>
+            </div>
+            {filters.letterCategoryCode && availablePublisherTypes.length > 0 && (
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">نوع ناشر:</label>
+                    <select 
+                        className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        value={filters.publisherTypeCode}
+                        onChange={(e) => setFilters({...filters, publisherTypeCode: e.target.value, letterTypeId: ''})}
+                    >
+                        <option value="">همه موارد</option>
+                        {availablePublisherTypes.map(publisher => (
+                            <option key={publisher.Code} value={publisher.Code}>{publisher.Name}</option>
+                        ))}
+                    </select>
+                </div>
             )}
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="space-y-2">
-            {filters.map((filter) => {
-                const isActive = filter.key === 'underSupervision' 
-                    ? searchParams.get(filter.key) === '1'
-                    : searchParams.get(filter.key) === 'true';
-                
-                return (
-                    <div key={filter.key} className="flex items-center space-x-2 space-x-reverse">
-                        <input
-                            type="checkbox"
-                            id={filter.key}
-                            checked={isActive}
-                            onChange={(e) => updateFilter(filter.key, filter.key === 'underSupervision' ? (e.target.checked ? '1' : null) : e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <label
-                            htmlFor={filter.key}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 flex justify-between"
-                        >
-                            <span>{filter.label}</span>
-                            {filter.count !== undefined && (
-                                <span className="text-xs text-muted-foreground">({formatNumber(filter.count)})</span>
-                            )}
-                        </label>
-                    </div>
-                );
-            })}
-          </div>
+            {filters.publisherTypeCode && availableLetterTypes.length > 0 && (
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">نوع اطلاعیه:</label>
+                    <select 
+                        className="w-full h-9 text-sm border rounded px-2 bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        value={filters.letterTypeId}
+                        onChange={(e) => setFilters({...filters, letterTypeId: e.target.value})}
+                    >
+                        <option value="">همه موارد</option>
+                        {availableLetterTypes.map(letterType => (
+                            <option key={letterType.Id} value={letterType.Id}>{letterType.Name}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
 
-          {facets?.topLetterCodes && facets.topLetterCodes.length > 0 && (
-              <div className="pt-4 border-t">
-                  <h4 className="mb-2 text-sm font-semibold">کدهای نامه پرتکرار</h4>
-                  <div className="flex flex-wrap gap-2">
-                      {facets.topLetterCodes.map((code) => {
-                          const isActive = searchParams.get('letterCode') === code._id;
-                          return (
-                              <Badge
-                                  key={code._id}
-                                  variant={isActive ? "default" : "outline"}
-                                  className="cursor-pointer hover:bg-primary/90 hover:text-primary-foreground"
-                                  onClick={() => updateFilter('letterCode', isActive ? null : code._id)}
-                              >
-                                  {code._id}
-                                  <span className="mr-1 text-[10px] opacity-70">({formatNumber(code.count)})</span>
-                              </Badge>
-                          )
-                      })}
-                  </div>
-              </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">موضوع اطلاعیه:</label>
+                <Input 
+                    className="h-9 text-sm bg-white" 
+                    value={filters.title}
+                    onChange={(e) => setFilters({...filters, title: e.target.value})}
+                />
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">شماره پیگیری:</label>
+                <Input 
+                    className="h-9 text-sm bg-white" 
+                    value={filters.tracingNo}
+                    onChange={(e) => setFilters({...filters, tracingNo: e.target.value})}
+                />
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">کد اطلاعیه:</label>
+                <Input 
+                    className="h-9 text-sm bg-white" 
+                    value={filters.letterCode}
+                    onChange={(e) => setFilters({...filters, letterCode: e.target.value})}
+                />
+            </div>
+
+            {/* Checkboxes */}
+            <div className="space-y-2 pt-2 border-t">
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={filters.hasAttachment}
+                        onChange={(e) => setFilters({...filters, hasAttachment: e.target.checked})}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    دارای پیوست
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={filters.hasExcel}
+                        onChange={(e) => setFilters({...filters, hasExcel: e.target.checked})}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    دارای اکسل
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={filters.hasPdf}
+                        onChange={(e) => setFilters({...filters, hasPdf: e.target.checked})}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    دارای PDF
+                </label>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={filters.underSupervision}
+                        onChange={(e) => setFilters({...filters, underSupervision: e.target.checked})}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    تحت نظارت
+                </label>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-4 border-t">
+                <Button 
+                    onClick={handleSearch} 
+                    disabled={isLoading}
+                    className="w-full bg-[#007bff] hover:bg-[#0056b3] text-white"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            در حال جستجو...
+                        </>
+                    ) : (
+                        'جستجو'
+                    )}
+                </Button>
+                <Button 
+                    variant="outline" 
+                    onClick={clearFilters} 
+                    disabled={isLoading}
+                    className="w-full bg-white hover:bg-gray-100"
+                >
+                    پاک کردن
+                </Button>
+            </div>
+      </CardContent>
+    </Card>
   );
 }
