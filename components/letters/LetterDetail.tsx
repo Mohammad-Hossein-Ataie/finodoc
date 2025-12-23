@@ -5,10 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { buildCodalUrl, formatNumber, toPersianDigits } from '@/lib/utils';
-import { FileText, FileSpreadsheet, Paperclip, ExternalLink, Calendar, Building, Tag } from 'lucide-react';
+import { FileText, FileSpreadsheet, Paperclip, ExternalLink, Calendar, Building, Tag, Play, Music, Share2, Check } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function LetterDetail({ letter }: { letter: CodalLetter }) {
+  const hasTags = Array.isArray((letter as any)?.tags) && (letter as any).tags.length > 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-6">
@@ -99,6 +102,10 @@ export default function LetterDetail({ letter }: { letter: CodalLetter }) {
             </CardFooter>
           </Card>
 
+          {hasTags && (
+            <EducationalContentSection tags={(letter as any).tags} />
+          )}
+
           {/* CODAL Preview Box */}
           <Card>
             <CardHeader>
@@ -125,3 +132,167 @@ export default function LetterDetail({ letter }: { letter: CodalLetter }) {
 }
 
 import { AlertTriangle } from 'lucide-react';
+
+function normalizeTagIds(rawTags: unknown): string[] {
+  if (!Array.isArray(rawTags)) return [];
+
+  return rawTags
+    .map((t: any) => {
+      if (!t) return '';
+      if (typeof t === 'string') return t;
+      if (typeof t?.toString === 'function') return t.toString();
+      if (typeof t?.$oid === 'string') return t.$oid;
+      return String(t);
+    })
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getContentIcon(type: string) {
+  if (type === 'video') return <Play className="h-5 w-5 text-blue-500" />;
+  if (type === 'audio') return <Music className="h-5 w-5 text-green-500" />;
+  return <FileText className="h-5 w-5 text-orange-500" />;
+}
+
+function EducationalContentSection({ tags }: { tags: unknown }) {
+  const tagIds = useMemo(() => normalizeTagIds(tags), [tags]);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [contents, setContents] = useState<any[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      // Check auth first
+      try {
+        const meRes = await fetch('/api/auth/me');
+        const me = await meRes.json();
+        if (cancelled) return;
+        setUser(me.user);
+
+        if (!me.user) return;
+        if (tagIds.length === 0) return;
+
+        setLoading(true);
+        const allContent: any[] = [];
+
+        for (const tagId of tagIds) {
+          const res = await fetch(`/api/content?tagId=${encodeURIComponent(tagId)}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (Array.isArray(data)) allContent.push(...data);
+        }
+
+        const unique = Array.from(new Map(allContent.map((item) => [item._id, item])).values());
+        if (!cancelled) setContents(unique);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [tagIds]);
+
+  const handleShare = async (content: any) => {
+    const shareData = {
+      title: content.title,
+      text: `محتوای فینوداک: ${content.title}`,
+      url: content.url,
+    };
+
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // fallback to copy
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(content.url);
+      setCopiedId(content._id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">محتوای آموزشی و تحلیلی</CardTitle>
+        <CardDescription>
+          محتواهای مرتبط با این اطلاعیه (بر اساس تگ‌ها)
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!user ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <p className="text-sm text-muted-foreground mb-3">برای مشاهده محتوای آموزشی باید وارد شوید.</p>
+            <Button asChild>
+              <Link href="/login">ورود / ثبت نام</Link>
+            </Button>
+          </div>
+        ) : loading ? (
+          <div className="text-center py-6 text-sm text-muted-foreground">در حال بارگذاری...</div>
+        ) : contents.length === 0 ? (
+          <div className="text-center py-6 text-sm text-muted-foreground">محتوایی یافت نشد.</div>
+        ) : (
+          <div className="space-y-4">
+            {contents.map((content) => (
+              <div key={content._id} className="border rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="bg-gray-100 p-2 rounded">
+                    {getContentIcon(content.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-bold text-sm truncate">{content.title}</h3>
+                      <button
+                        onClick={() => handleShare(content)}
+                        className="group relative inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        type="button"
+                      >
+                        {copiedId === content._id ? (
+                          <>
+                            <Check className="h-4 w-4 text-green-600" />
+                            <span className="text-green-600">کپی شد</span>
+                          </>
+                        ) : (
+                          <>
+                            <Share2 className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                            <span>اشتراک</span>
+                          </>
+                        )}
+                        <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
+                          اشتراک یا کپی لینک
+                        </span>
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      {content.type === 'video' ? (
+                        <video controls className="w-full max-h-72 bg-black rounded" src={content.url} />
+                      ) : content.type === 'audio' ? (
+                        <audio controls className="w-full" src={content.url} />
+                      ) : (
+                        <a href={content.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline text-sm">
+                          مشاهده فایل/متن
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
