@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select } from '@/components/ui/select';
 import toast, { Toaster } from 'react-hot-toast';
 import RichTextEditor from '@/components/RichTextEditor';
 
@@ -133,24 +134,19 @@ export default function ContentManager() {
           </div>
           <div>
             <label className="block text-sm mb-1">نوع</label>
-            <select 
-                className="w-full border rounded p-2"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-            >
-                <option value="video">ویدیو</option>
-                <option value="audio">صوت</option>
-                <option value="text">متن</option>
-                <option value="pdf">PDF</option>
-                <option value="image">تصویر</option>
-                <option value="rich-text">متن غنی (Rich Text)</option>
-            </select>
+            <Select value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="video">ویدیو</option>
+              <option value="audio">صوت</option>
+              <option value="pdf">PDF</option>
+              <option value="image">تصویر</option>
+              <option value="rich-text">متن</option>
+            </Select>
           </div>
           
           {/* اگر نوع rich-text انتخاب شد، ویرایشگر متن را نشان بده */}
           {type === 'rich-text' ? (
             <div>
-              <label className="block text-sm mb-1">محتوای متنی</label>
+              <label className="block text-sm mb-1">متن</label>
               <RichTextEditor value={richContent} onChange={setRichContent} />
             </div>
           ) : (
@@ -195,7 +191,7 @@ export default function ContentManager() {
                             </div>
                         </div>
                         {c.type === 'rich-text' ? (
-                            <span className="text-sm text-green-600">متن غنی</span>
+                          <span className="text-sm text-green-600">متن</span>
                         ) : (
                             <a href={c.url} target="_blank" className="text-blue-500 text-sm">مشاهده</a>
                         )}

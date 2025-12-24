@@ -11,6 +11,10 @@ export default function TagManager() {
   const [group, setGroup] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editGroup, setEditGroup] = useState('');
+
   const fetchTags = async () => {
     const res = await fetch('/api/tags');
     const data = await res.json();
@@ -26,12 +30,52 @@ export default function TagManager() {
     setLoading(true);
     await fetch('/api/tags', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, group: group || 'General' }),
     });
     setName('');
     setGroup('');
     fetchTags();
     setLoading(false);
+  };
+
+  const startEdit = (tag: any) => {
+    setEditingId(tag._id);
+    setEditName(tag.name || '');
+    setEditGroup(tag.group || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditGroup('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const nextName = editName.trim();
+    const nextGroup = editGroup.trim();
+    if (!nextName) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tags/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nextName, group: nextGroup || 'General' }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || 'ویرایش ناموفق بود.');
+        return;
+      }
+
+      cancelEdit();
+      fetchTags();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -68,10 +112,34 @@ export default function TagManager() {
           <TableBody>
             {tags.map((tag) => (
               <TableRow key={tag._id}>
-                <TableCell>{tag.name}</TableCell>
-                <TableCell>{tag.group}</TableCell>
                 <TableCell>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(tag._id)}>حذف</Button>
+                  {editingId === tag._id ? (
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  ) : (
+                    tag.name
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editingId === tag._id ? (
+                    <Input value={editGroup} onChange={(e) => setEditGroup(e.target.value)} />
+                  ) : (
+                    tag.group
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    {editingId === tag._id ? (
+                      <>
+                        <Button size="sm" onClick={saveEdit} disabled={loading}>ذخیره</Button>
+                        <Button variant="outline" size="sm" onClick={cancelEdit} disabled={loading}>انصراف</Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={() => startEdit(tag)} disabled={loading}>ویرایش</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(tag._id)} disabled={loading}>حذف</Button>
+                      </>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

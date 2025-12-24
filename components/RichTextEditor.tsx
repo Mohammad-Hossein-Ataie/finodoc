@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useRef } from "react";
+import { Node, mergeAttributes } from '@tiptap/core';
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -42,11 +43,96 @@ interface RichTextEditorProps {
   className?: string;
 }
 
+const VideoNode = Node.create({
+  name: 'video',
+  group: 'block',
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      type: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'video',
+        getAttrs: (dom) => {
+          if (!(dom instanceof HTMLElement)) return false;
+          const directSrc = dom.getAttribute('src');
+          const source = dom.querySelector('source');
+          const src = directSrc || source?.getAttribute('src');
+          const type = source?.getAttribute('type') || dom.getAttribute('data-type');
+          return { src, type };
+        },
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const { src, type, ...rest } = HTMLAttributes as { src?: string; type?: string };
+
+    // Persist as <video><source ... /></video> for broad compatibility.
+    return [
+      'video',
+      mergeAttributes(rest, {
+        controls: 'controls',
+        ...(type ? { 'data-type': type } : {}),
+      }),
+      ['source', { ...(src ? { src } : {}), ...(type ? { type } : {}) }],
+    ];
+  },
+});
+
+const AudioNode = Node.create({
+  name: 'audio',
+  group: 'block',
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      type: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'audio',
+        getAttrs: (dom) => {
+          if (!(dom instanceof HTMLElement)) return false;
+          const directSrc = dom.getAttribute('src');
+          const source = dom.querySelector('source');
+          const src = directSrc || source?.getAttribute('src');
+          const type = source?.getAttribute('type') || dom.getAttribute('data-type');
+          return { src, type };
+        },
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const { src, type, ...rest } = HTMLAttributes as { src?: string; type?: string };
+    return [
+      'audio',
+      mergeAttributes(rest, {
+        controls: 'controls',
+        ...(type ? { 'data-type': type } : {}),
+      }),
+      ['source', { ...(src ? { src } : {}), ...(type ? { type } : {}) }],
+    ];
+  },
+});
+
 export default function RichTextEditor({ value, onChange, className = "" }: RichTextEditorProps) {
   const [fullscreen, setFullscreen] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     // Next.js (App Router) pre-renders client components; prevent hydration mismatch.
@@ -72,6 +158,8 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           class: 'max-w-full h-auto rounded',
         },
       }),
+      VideoNode,
+      AudioNode,
       Youtube.configure({
         width: 640,
         height: 360,
@@ -101,7 +189,7 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
     }
   }, [editor]);
 
-  const uploadImage = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadMedia = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !editor) return;
 
@@ -118,41 +206,43 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
       if (!response.ok) throw new Error("Upload failed");
 
       const { url } = await response.json();
-      editor.chain().focus().setImage({ src: url }).run();
+
+      if (file.type.startsWith('image/')) {
+        editor.chain().focus().setImage({ src: url }).run();
+        return;
+      }
+
+      if (file.type.startsWith('video/')) {
+        editor
+          .chain()
+          .focus()
+          .insertContent([
+            { type: 'video', attrs: { src: url, type: file.type } },
+            { type: 'paragraph' },
+          ])
+          .run();
+        return;
+      }
+
+      if (file.type.startsWith('audio/')) {
+        editor
+          .chain()
+          .focus()
+          .insertContent([
+            { type: 'audio', attrs: { src: url, type: file.type } },
+            { type: 'paragraph' },
+          ])
+          .run();
+        return;
+      }
+
+      alert("فرمت فایل پشتیبانی نمی‌شود");
     } catch (error) {
-      console.error("Error uploading image:", error);
-      alert("خطا در آپلود تصویر");
+      console.error("Error uploading media:", error);
+      alert("خطا در آپلود فایل");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }, [editor]);
-
-  const uploadVideo = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !editor) return;
-
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/storage/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("Upload failed");
-
-      const { url } = await response.json();
-      // Insert video as HTML
-      editor.chain().focus().insertContent(`<video controls style="max-width: 100%; border-radius: 8px; margin: 12px 0;"><source src="${url}" type="${file.type}"></video>`).run();
-    } catch (error) {
-      console.error("Error uploading video:", error);
-      alert("خطا در آپلود ویدیو");
-    } finally {
-      setUploading(false);
-      if (videoInputRef.current) videoInputRef.current.value = "";
+      if (mediaInputRef.current) mediaInputRef.current.value = "";
     }
   }, [editor]);
 
@@ -164,8 +254,11 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
     if (url.includes("youtube.com") || url.includes("youtu.be")) {
       editor.chain().focus().setYoutubeVideo({ src: url }).run();
     } else {
-      // Insert video as HTML
-      editor.chain().focus().insertContent(`<video controls style="max-width: 100%; border-radius: 8px; margin: 12px 0;"><source src="${url}"></video>`).run();
+      editor
+        .chain()
+        .focus()
+        .insertContent([{ type: 'video', attrs: { src: url } }, { type: 'paragraph' }])
+        .run();
     }
   }, [editor]);
 
@@ -184,16 +277,27 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
   if (!editor) return null;
 
   const ToolbarButton = ({ onClick, active, disabled, children, title }: any) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`p-2 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed ${
-        active ? "bg-blue-100 text-blue-600" : "text-gray-700"
-      }`}
-    >
-      {children}
-    </button>
+    <div className="relative inline-flex">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={title}
+        className={`group relative p-2 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed ${
+          active ? "bg-accent text-foreground" : "text-foreground"
+        }`}
+      >
+        {children}
+        {title ? (
+          <span
+            className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+            role="tooltip"
+          >
+            {title}
+          </span>
+        ) : null}
+      </button>
+    </div>
   );
 
   return (
@@ -206,22 +310,15 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
     >
       {/* Hidden file inputs */}
       <input
-        ref={fileInputRef}
+        ref={mediaInputRef}
         type="file"
-        accept="image/*"
-        onChange={uploadImage}
-        className="hidden"
-      />
-      <input
-        ref={videoInputRef}
-        type="file"
-        accept="video/*"
-        onChange={uploadVideo}
+        accept="image/*,video/*,audio/*"
+        onChange={uploadMedia}
         className="hidden"
       />
 
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-1 p-2 border-b bg-gray-50">
+      <div className="flex flex-wrap gap-1 p-2 border-b bg-muted">
         <ToolbarButton
           onClick={() => setFullscreen(!fullscreen)}
           title="تمام‌صفحه"
@@ -229,7 +326,7 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </ToolbarButton>
 
-        <div className="w-px bg-gray-300 mx-1" />
+        <div className="w-px bg-border mx-1" />
 
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
@@ -246,7 +343,7 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           <Redo size={18} />
         </ToolbarButton>
 
-        <div className="w-px bg-gray-300 mx-1" />
+        <div className="w-px bg-border mx-1" />
 
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -276,7 +373,7 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           <RemoveFormatting size={18} />
         </ToolbarButton>
 
-        <div className="w-px bg-gray-300 mx-1" />
+        <div className="w-px bg-border mx-1" />
 
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -307,7 +404,7 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           <Code size={18} />
         </ToolbarButton>
 
-        <div className="w-px bg-gray-300 mx-1" />
+        <div className="w-px bg-border mx-1" />
 
         <ToolbarButton onClick={setLink} active={editor.isActive("link")} title="لینک">
           <LinkIcon size={18} />
@@ -320,37 +417,30 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           <Heading2 size={18} />
         </ToolbarButton>
 
-        <div className="w-px bg-gray-300 mx-1" />
+        <div className="w-px bg-border mx-1" />
 
         <ToolbarButton onClick={addImage} title="افزودن تصویر از URL">
           <ImagePlus size={18} />
         </ToolbarButton>
         <ToolbarButton
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => mediaInputRef.current?.click()}
           disabled={uploading}
-          title="آپلود تصویر"
+          title="آپلود فایل (تصویر/ویدیو/صوت)"
         >
           <Upload size={18} />
         </ToolbarButton>
         <ToolbarButton onClick={addVideo} title="افزودن ویدیو از URL">
           <Video size={18} />
         </ToolbarButton>
-        <ToolbarButton
-          onClick={() => videoInputRef.current?.click()}
-          disabled={uploading}
-          title="آپلود ویدیو"
-        >
-          <Upload size={18} className="text-red-600" />
-        </ToolbarButton>
 
-        <div className="w-px bg-gray-300 mx-1" />
+        <div className="w-px bg-border mx-1" />
 
         <ToolbarButton onClick={insertTable} title="افزودن جدول">
           <TableIcon size={18} />
         </ToolbarButton>
 
         {uploading && (
-          <span className="text-xs text-gray-500 flex items-center mr-2">
+          <span className="text-xs text-muted-foreground flex items-center mr-2">
             در حال آپلود...
           </span>
         )}
@@ -401,6 +491,10 @@ export default function RichTextEditor({ value, onChange, className = "" }: Rich
           max-width: 100%;
           height: auto;
           border-radius: 8px;
+          margin: 12px 0;
+        }
+        .ProseMirror audio {
+          width: 100%;
           margin: 12px 0;
         }
         .ProseMirror iframe {

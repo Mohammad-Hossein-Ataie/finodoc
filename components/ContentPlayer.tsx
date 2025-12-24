@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, FileText, Music, Share2, Check, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import RichContentViewer from '@/components/RichContentViewer';
 
 interface ContentPlayerProps {
   tags: string[]; // Tag IDs
@@ -35,31 +36,15 @@ export default function ContentPlayer({ tags, isOpen, onClose }: ContentPlayerPr
 
   const fetchContents = async () => {
     setLoading(true);
-    // Fetch content for each tag or all tags
-    // We can update api/content to accept multiple tags or just loop
-    // For now, let's assume we fetch all content and filter or update API
-    // Better: update API to accept comma separated tags
-    // But I implemented api/content?tagId=...
-    // Let's just fetch all content for now or improve API later.
-    // I'll fetch for the first tag for simplicity or loop.
-    // Actually, let's just fetch all content and filter client side if list is small, 
-    // or better, fetch by tags.
-    
-    // Since I can't easily change API right now without more tool calls, 
-    // I will try to fetch for each tag.
-    const allContent: any[] = [];
-    for (const tagId of tags) {
-        const res = await fetch(`/api/content?tagId=${tagId}`);
-        const data = await res.json();
-        allContent.push(...data);
-    }
-    // Deduplicate
-    const uniqueContent = Array.from(new Map(allContent.map(item => [item._id, item])).values());
-    setContents(uniqueContent);
+    const qs = tags.length > 0 ? `?tagIds=${encodeURIComponent(tags.join(','))}` : '';
+    const res = await fetch(`/api/content${qs}`);
+    const data = await res.json();
+    setContents(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
   const handleShare = async (content: any) => {
+    if (!content?.url) return;
     const shareData = {
       title: content.title,
       text: `محتوای فینوداک: ${content.title}`,
@@ -111,18 +96,21 @@ export default function ContentPlayer({ tags, isOpen, onClose }: ContentPlayerPr
                 <div className="bg-gray-100 p-2 rounded">
                     {content.type === 'video' && <Play className="h-6 w-6 text-blue-500" />}
                     {content.type === 'audio' && <Music className="h-6 w-6 text-green-500" />}
-                    {(content.type === 'text' || content.type === 'pdf') && <FileText className="h-6 w-6 text-orange-500" />}
+                    {(content.type === 'text' || content.type === 'pdf' || content.type === 'rich-text') && <FileText className="h-6 w-6 text-orange-500" />}
                 </div>
                 <div className="flex-1">
                     <h3 className="font-bold">{content.title}</h3>
                     <div className="mt-2">
                         {content.type === 'video' || content.type === 'audio' ? (
-                            <video controls className="w-full max-h-64 bg-black" src={content.url} />
+                          <video controls className="w-full max-h-64 bg-black" src={content.url} />
+                        ) : content.type === 'rich-text' || content.type === 'text' ? (
+                          <RichContentViewer content={content.richContent || ''} />
                         ) : (
-                            <a href={content.url} target="_blank" className="text-blue-500 underline">مشاهده فایل/متن</a>
+                          <a href={content.url} target="_blank" className="text-blue-500 underline">مشاهده فایل</a>
                         )}
                     </div>
                     <div className="mt-3 flex justify-end">
+                      {!content.url ? null : (
                         <button
                           onClick={() => handleShare(content)}
                           className="
@@ -156,6 +144,7 @@ export default function ContentPlayer({ tags, isOpen, onClose }: ContentPlayerPr
                             اشتراک یا کپی لینک
                           </span>
                         </button>
+                      )}
                     </div>
                 </div>
               </div>

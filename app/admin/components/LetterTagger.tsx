@@ -4,6 +4,21 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import Pagination from '@/components/letters/Pagination';
+
+function formatLetterDate(letter: any) {
+  if (letter?.publishDateTimeJalali) return String(letter.publishDateTimeJalali);
+  const utc = letter?.publishDateTimeUtc;
+  if (!utc) return '-';
+  const d = new Date(utc);
+  if (Number.isNaN(d.getTime())) return '-';
+  try {
+    return d.toLocaleDateString('fa-IR');
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
 
 export default function LetterTagger() {
   const [letters, setLetters] = useState<any[]>([]);
@@ -13,11 +28,24 @@ export default function LetterTagger() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchLetters = async (q = '') => {
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
+
+  const fetchLetters = async ({ q = '', page: nextPage = 1 }: { q?: string; page?: number } = {}) => {
     setLoading(true);
-    const res = await fetch(`/api/letters?q=${q}&pageSize=10`);
+    const params = new URLSearchParams();
+    params.set('page', String(nextPage));
+    params.set('pageSize', String(pageSize));
+    if (q.trim()) params.set('q', q.trim());
+
+    const res = await fetch(`/api/letters?${params.toString()}`);
     const data = await res.json();
-    setLetters(data.items);
+    setLetters(Array.isArray(data?.items) ? data.items : []);
+    setPage(typeof data?.page === 'number' ? data.page : nextPage);
+    setTotalPages(typeof data?.totalPages === 'number' ? data.totalPages : 1);
+    setTotalCount(typeof data?.totalCount === 'number' ? data.totalCount : 0);
     setLoading(false);
   };
 
@@ -29,11 +57,11 @@ export default function LetterTagger() {
 
   useEffect(() => {
     fetchTags();
-    fetchLetters();
+    fetchLetters({ page: 1 });
   }, []);
 
   const handleSearch = () => {
-    fetchLetters(search);
+    fetchLetters({ q: search, page: 1 });
   };
 
   const openTagModal = (letter: any) => {
@@ -53,7 +81,7 @@ export default function LetterTagger() {
     });
 
     setSelectedLetter(null);
-    fetchLetters(search); // Refresh
+    fetchLetters({ q: search, page: 1 }); // Refresh
   };
 
   const toggleTag = (id: string) => {
@@ -83,30 +111,49 @@ export default function LetterTagger() {
             <TableRow>
               <TableHead className="text-right">نماد</TableHead>
               <TableHead className="text-right">عنوان</TableHead>
+              <TableHead className="text-right">تاریخ</TableHead>
               <TableHead className="text-right">تگ‌ها</TableHead>
               <TableHead className="text-right">عملیات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {letters.map((letter) => (
-              <TableRow key={letter.tracingNo}>
-                <TableCell>{letter.symbol}</TableCell>
-                <TableCell>{letter.title}</TableCell>
-                <TableCell>
-                    {letter.tags && letter.tags.length > 0 ? (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                            {letter.tags.length} تگ
-                        </span>
-                    ) : '-'}
-                </TableCell>
-                <TableCell>
-                  <Button size="sm" onClick={() => openTagModal(letter)}>ویرایش تگ</Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {loading
+              ? Array.from({ length: pageSize }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-96" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                  </TableRow>
+                ))
+              : letters.map((letter) => (
+                  <TableRow key={letter.tracingNo}>
+                    <TableCell>{letter.symbol}</TableCell>
+                    <TableCell>{letter.title}</TableCell>
+                    <TableCell>{formatLetterDate(letter)}</TableCell>
+                    <TableCell>
+                        {letter.tags && letter.tags.length > 0 ? (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                {letter.tags.length} تگ
+                            </span>
+                        ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={() => openTagModal(letter)}>ویرایش تگ</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
           </TableBody>
         </Table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        onPageChange={(p) => fetchLetters({ q: search, page: p })}
+      />
 
       {selectedLetter && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

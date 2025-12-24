@@ -12,9 +12,13 @@ export async function GET(req: NextRequest) {
   await dbConnect();
   const { searchParams } = new URL(req.url);
   const tagId = searchParams.get('tagId');
+  const tagIdsRaw = searchParams.get('tagIds') || searchParams.get('tags');
 
   const query: any = {};
-  if (tagId) {
+  if (tagIdsRaw) {
+    const tagIds = tagIdsRaw.split(',').map(s => s.trim()).filter(Boolean);
+    if (tagIds.length > 0) query.tags = { $all: tagIds };
+  } else if (tagId) {
     query.tags = tagId;
   }
 
