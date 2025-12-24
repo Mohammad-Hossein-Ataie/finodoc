@@ -71,9 +71,9 @@ export default function LettersPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-[1600px]">
+    <div className="w-full">
       <div className="flex flex-col md:flex-row gap-4 items-start">
-        <aside className="w-full md:w-72 flex-shrink-0 sticky top-4">
+        <aside className="w-full md:w-72 flex-shrink-0 lg:sticky lg:top-20">
             <LettersFilters isLoading={isLoading || isFetching} />
         </aside>
         <main className="flex-1 min-w-0 space-y-4">
