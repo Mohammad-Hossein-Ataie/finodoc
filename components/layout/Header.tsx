@@ -1,41 +1,16 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Menu } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Menu, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { getSession } from '@/lib/auth';
 
-export default function Header() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get('q') || '');
-
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (search) {
-        params.set('q', search);
-      } else {
-        params.delete('q');
-      }
-      // Reset page to 1 on search
-      params.set('page', '1');
-      
-      // Only push if the query actually changed to avoid loops or unnecessary pushes
-      if (params.get('q') !== searchParams.get('q')) {
-          router.push(`/letters?${params.toString()}`);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [search, router, searchParams]);
+export default async function Header() {
+  const session = await getSession();
+  const isLoggedIn = !!session;
+  const displayName = (session as any)?.name || (session as any)?.mobile || 'کاربر';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center px-4">
+      <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center px-2 sm:px-4">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2 space-x-reverse">
             <span className="hidden font-bold sm:inline-block text-xl text-primary">
@@ -59,17 +34,18 @@ export default function Header() {
           <span className="sr-only">Toggle Menu</span>
         </Button>
         <div className="flex flex-1 items-center justify-end space-x-2 space-x-reverse">
-          <div className="w-full flex-1 md:w-auto md:flex-none">
-            <div className="relative">
-              <Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="جستجو در نماد، شرکت، عنوان..."
-                className="pr-8 pl-2 md:w-[300px] lg:w-[400px]"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
+          {!isLoggedIn ? (
+            <Button asChild className="h-10 px-4">
+              <Link href="/login">ورود / ثبت‌نام</Link>
+            </Button>
+          ) : (
+            <Button asChild variant="ghost" className="h-10 px-2 sm:px-3">
+              <Link href="/profile" className="flex items-center gap-2">
+                <UserCircle className="h-5 w-5" />
+                <span className="max-w-[160px] truncate text-sm">{displayName}</span>
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </header>
