@@ -74,3 +74,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Disable text selection globally */
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
