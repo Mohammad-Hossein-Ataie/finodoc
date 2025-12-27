@@ -70,3 +70,19 @@ export interface FilterParams {
   publisherTypeCode?: string;
   letterTypeId?: string;
 }
+
+export type ContentType = 'video' | 'audio' | 'text' | 'pdf' | 'image' | 'rich-text';
+
+export interface ContentItem {
+  _id: string;
+  title: string;
+  category?: string;
+  type: ContentType;
+  url?: string;
+  richContent?: string;
+  description?: string;
+  viewsCount?: number;
+  rating?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}

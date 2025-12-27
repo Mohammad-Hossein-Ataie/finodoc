@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const ContentSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
+    category: { type: String },
     type: { 
       type: String, 
       enum: ["video", "audio", "text", "pdf", "image", "rich-text"], 
@@ -11,6 +12,8 @@ const ContentSchema = new mongoose.Schema(
     url: { type: String }, // S3 URL for files (optional for rich-text)
     richContent: { type: String }, // HTML content for rich text editor
     description: { type: String }, // Optional description for the content
+    viewsCount: { type: Number, default: 0 },
+    rating: { type: Number, default: 0 },
     tags: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tag" }],
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
   },

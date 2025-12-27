@@ -7,7 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Filter, Loader2 } from 'lucide-react';
-import { INDUSTRY_TYPES, LETTER_CATEGORIES, PUBLISHER_STATUS, COMPANY_NATURE, COMPANY_TYPE } from '@/lib/filterConstants';
+import { INDUSTRY_TYPES, LETTER_CATEGORIES, COMPANY_NATURE, COMPANY_TYPE } from '@/lib/filterConstants';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import persian from 'react-date-object/calendars/persian';
+import persian_fa from 'react-date-object/locales/persian_fa';
+import gregorian from 'react-date-object/calendars/gregorian';
 
 type TagItem = {
     _id: string;
@@ -23,6 +27,33 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+    const fixedLetterCode = 'ن-۱۰';
+
+    const parseGregorianDateOnlyToPersian = (dateOnly: string | null): DateObject | null => {
+        if (!dateOnly) return null;
+        // Expecting YYYY-MM-DD
+        const m = /^\d{4}-\d{2}-\d{2}$/.exec(dateOnly);
+        if (!m) return null;
+        const g = new DateObject({ date: dateOnly, format: 'YYYY-MM-DD', calendar: gregorian });
+        return g.convert(persian);
+    };
+
+    const toGregorianDateOnly = (value: DateObject | null): string => {
+        if (!value) return '';
+        const g = value.convert(gregorian);
+        const y = String(g.year).padStart(4, '0');
+        const m = String(g.month.number).padStart(2, '0');
+        const d = String(g.day).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    const [dateFromPicker, setDateFromPicker] = useState<DateObject | null>(() =>
+        parseGregorianDateOnlyToPersian(searchParams.get('dateFrom'))
+    );
+    const [dateToPicker, setDateToPicker] = useState<DateObject | null>(() =>
+        parseGregorianDateOnlyToPersian(searchParams.get('dateTo'))
+    );
+
     const [availableTags, setAvailableTags] = useState<TagItem[]>([]);
     const [tagsLoading, setTagsLoading] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
@@ -31,7 +62,6 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     companyName: '',
     title: '',
     letterCode: '',
-    tracingNo: '',
     isEstimate: false,
     underSupervision: false,
     hasPdf: false,
@@ -44,9 +74,12 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     letterCategoryCode: '',
     publisherTypeCode: '',
     letterTypeId: '',
-    publisherStatusId: '',
     companyNatureId: '',
     companyTypeId: '',
+
+        // Placeholder switches (logic TBD)
+        audited: false,
+        unaudited: false,
   });
 
     useEffect(() => {
@@ -114,8 +147,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
       symbol: searchParams.get('symbol') || '',
       companyName: searchParams.get('companyName') || '',
       title: searchParams.get('q') || '',
-      letterCode: searchParams.get('letterCode') || '',
-      tracingNo: searchParams.get('tracingNo') || '',
+            letterCode: fixedLetterCode,
       isEstimate: searchParams.get('isEstimate') === 'true',
       underSupervision: searchParams.get('underSupervision') === '1',
       hasPdf: searchParams.get('hasPdf') === 'true',
@@ -128,10 +160,15 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
       letterCategoryCode: searchParams.get('letterCategoryCode') || '',
       publisherTypeCode: searchParams.get('publisherTypeCode') || '',
       letterTypeId: searchParams.get('letterTypeId') || '',
-      publisherStatusId: searchParams.get('publisherStatusId') || '',
       companyNatureId: searchParams.get('companyNatureId') || '',
       companyTypeId: searchParams.get('companyTypeId') || '',
+
+            audited: false,
+            unaudited: false,
     });
+
+        setDateFromPicker(parseGregorianDateOnlyToPersian(searchParams.get('dateFrom')));
+        setDateToPicker(parseGregorianDateOnlyToPersian(searchParams.get('dateTo')));
   }, [searchParams]);
 
   const handleSearch = () => {
@@ -139,8 +176,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     if (filters.symbol) params.set('symbol', filters.symbol);
     if (filters.companyName) params.set('companyName', filters.companyName);
     if (filters.title) params.set('q', filters.title);
-    if (filters.letterCode) params.set('letterCode', filters.letterCode);
-    if (filters.tracingNo) params.set('tracingNo', filters.tracingNo);
+        params.set('letterCode', fixedLetterCode);
     if (filters.isEstimate) params.set('isEstimate', 'true');
     if (filters.underSupervision) params.set('underSupervision', '1');
     if (filters.hasPdf) params.set('hasPdf', 'true');
@@ -153,7 +189,6 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     if (filters.letterCategoryCode) params.set('letterCategoryCode', filters.letterCategoryCode);
     if (filters.publisherTypeCode) params.set('publisherTypeCode', filters.publisherTypeCode);
     if (filters.letterTypeId) params.set('letterTypeId', filters.letterTypeId);
-    if (filters.publisherStatusId) params.set('publisherStatusId', filters.publisherStatusId);
     if (filters.companyNatureId) params.set('companyNatureId', filters.companyNatureId);
     if (filters.companyTypeId) params.set('companyTypeId', filters.companyTypeId);
     
@@ -203,18 +238,6 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                     <option value="">همه موارد</option>
                     {INDUSTRY_TYPES.map(industry => (
                         <option key={industry.Id} value={industry.Id}>{industry.Name}</option>
-                    ))}
-                </Select>
-            </div>
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">وضعیت ناشران:</label>
-                <Select 
-                    value={filters.publisherStatusId}
-                    onChange={(e) => setFilters({...filters, publisherStatusId: e.target.value})}
-                >
-                    <option value="">همه موارد</option>
-                    {PUBLISHER_STATUS.map(status => (
-                        <option key={status.Id} value={status.Id}>{status.Name}</option>
                     ))}
                 </Select>
             </div>
@@ -353,20 +376,51 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                 </div>
             </div>
             <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">شماره پیگیری:</label>
-                <Input 
-                    className="h-9 text-sm bg-white" 
-                    value={filters.tracingNo}
-                    onChange={(e) => setFilters({...filters, tracingNo: e.target.value})}
-                />
-            </div>
-            <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-600">کد اطلاعیه:</label>
                 <Input 
                     className="h-9 text-sm bg-white" 
                     value={filters.letterCode}
-                    onChange={(e) => setFilters({...filters, letterCode: e.target.value})}
+                    disabled
                 />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">از تاریخ:</label>
+                    <div className="h-9">
+                        <DatePicker
+                            calendar={persian}
+                            locale={persian_fa}
+                            value={dateFromPicker}
+                            onChange={(v) => {
+                                const next = (v as DateObject) || null;
+                                setDateFromPicker(next);
+                                setFilters({ ...filters, dateFrom: toGregorianDateOnly(next) });
+                            }}
+                            inputClass="h-9 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            format="YYYY/MM/DD"
+                            calendarPosition="bottom-right"
+                        />
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600">تا تاریخ:</label>
+                    <div className="h-9">
+                        <DatePicker
+                            calendar={persian}
+                            locale={persian_fa}
+                            value={dateToPicker}
+                            onChange={(v) => {
+                                const next = (v as DateObject) || null;
+                                setDateToPicker(next);
+                                setFilters({ ...filters, dateTo: toGregorianDateOnly(next) });
+                            }}
+                            inputClass="h-9 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            format="YYYY/MM/DD"
+                            calendarPosition="bottom-right"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Checkboxes */}
@@ -406,6 +460,25 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                         className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                     تحت نظارت
+                </label>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={filters.audited}
+                        onChange={(e) => setFilters({ ...filters, audited: e.target.checked })}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    حسابرسی شده
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={filters.unaudited}
+                        onChange={(e) => setFilters({ ...filters, unaudited: e.target.checked })}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    حسابرسی نشده
                 </label>
             </div>
 

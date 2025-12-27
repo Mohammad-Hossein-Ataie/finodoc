@@ -8,10 +8,14 @@ import Pagination from '@/components/letters/Pagination';
 import { SortingState } from '@tanstack/react-table';
 import { useState, useEffect } from 'react';
 import { FilterParams } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import EducationalContentView from '@/components/content/EducationalContentView';
 
 export default function LettersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  const [activeTab, setActiveTab] = useState<'search' | 'content'>('search');
 
   // Parse params
   const page = parseInt(searchParams.get('page') || '1');
@@ -41,6 +45,9 @@ export default function LettersPage() {
     letterCategoryCode: searchParams.get('letterCategoryCode') || undefined,
     publisherTypeCode: searchParams.get('publisherTypeCode') || undefined,
     letterTypeId: searchParams.get('letterTypeId') || undefined,
+
+    dateFrom: searchParams.get('dateFrom') || undefined,
+    dateTo: searchParams.get('dateTo') || undefined,
   };
 
   const { data, isLoading, isError, isFetching } = useLetters(filters);
@@ -72,6 +79,26 @@ export default function LettersPage() {
 
   return (
     <div className="w-full">
+      <div className="flex items-center gap-2 mb-4">
+        <Button
+          variant={activeTab === 'search' ? 'default' : 'outline'}
+          className={activeTab === 'search' ? 'bg-[#007bff] hover:bg-[#0056b3]' : ''}
+          onClick={() => setActiveTab('search')}
+        >
+          جستجو
+        </Button>
+        <Button
+          variant={activeTab === 'content' ? 'default' : 'outline'}
+          className={activeTab === 'content' ? 'bg-[#007bff] hover:bg-[#0056b3]' : ''}
+          onClick={() => setActiveTab('content')}
+        >
+          مطالب آموزشی
+        </Button>
+      </div>
+
+      {activeTab === 'content' ? (
+        <EducationalContentView onBack={() => setActiveTab('search')} />
+      ) : (
       <div className="flex flex-col md:flex-row gap-4 items-start">
         <aside className="w-full md:w-72 flex-shrink-0 lg:sticky lg:top-20">
             <LettersFilters isLoading={isLoading || isFetching} />
@@ -93,6 +120,7 @@ export default function LettersPage() {
             )}
         </main>
       </div>
+      )}
     </div>
   );
 }

@@ -44,7 +44,18 @@ export default function LettersTable({
   const renderActions = (letter: CodalLetter) => (
     <div className="flex items-center gap-2">
       <MessageSquare className="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600" />
-      {letter.hasAttachment ? <Paperclip className="h-4 w-4 text-gray-500" /> : null}
+      {letter.hasAttachment && letter.attachmentUrl ? (
+        <a
+          href={buildCodalUrl(letter.attachmentUrl)}
+          target="_blank"
+          className="hover:scale-110 transition-transform"
+          rel="noreferrer"
+          aria-label="دانلود پیوست"
+          title="دانلود پیوست"
+        >
+          <Paperclip className="h-4 w-4 text-gray-500" />
+        </a>
+      ) : null}
       {letter.hasPdf ? (
         <a
           href={buildCodalUrl(letter.pdfUrl)}
@@ -81,50 +92,14 @@ export default function LettersTable({
   const columns = useMemo<ColumnDef<CodalLetter>[]>(
     () => [
       {
-        id: 'actions',
-        header: '',
-        cell: ({ row }) => (
-          <div className="flex space-x-1 space-x-reverse items-center justify-center">
-             <MessageSquare className="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600" />
-             {row.original.hasAttachment ? <Paperclip className="h-4 w-4 text-gray-500" /> : <div className="w-4" />}
-             {row.original.hasPdf ? (
-              <a href={buildCodalUrl(row.original.pdfUrl)} target="_blank" className="hover:scale-110 transition-transform">
-                <FileText className="h-4 w-4 text-red-500" />
-              </a>
-            ) : <div className="w-4" />}
-            {row.original.hasExcel ? (
-              <a href={row.original.excelUrl} target="_blank" className="hover:scale-110 transition-transform">
-                <FileSpreadsheet className="h-4 w-4 text-green-500" />
-              </a>
-            ) : <div className="w-4" />}
-             <Eye 
-               className="h-4 w-4 text-gray-500 cursor-pointer hover:text-blue-500" 
-               onClick={() => router.push(`/letters/${row.original.tracingNo}`)}
-             />
-            {/* Media Icon */}
-            {row.original.tags && row.original.tags.length > 0 && (
-                <PlayCircle 
-                    className="h-5 w-5 text-purple-600 cursor-pointer hover:scale-110" 
-                    onClick={() => setSelectedTags(row.original.tags as any)}
-                />
-            )}
-          </div>
-        ),
+        accessorKey: 'symbol',
+        header: 'نماد',
+        cell: ({ row }) => <span className="font-bold text-[#0056b3] text-[11px]">{row.original.symbol}</span>,
       },
       {
-        accessorKey: 'publishDateTimeUtc', 
-        header: 'زمان انتشار',
-        cell: ({ row }) => <span className="whitespace-nowrap text-[11px]">{toPersianDigits(row.original.publishDateTimeJalali)}</span>,
-      },
-      {
-        accessorKey: 'sentDateTimeJalali',
-        header: 'زمان ارسال',
-        cell: ({ row }) => <span className="whitespace-nowrap text-[11px]">{toPersianDigits(row.original.sentDateTimeJalali || '')}</span>,
-      },
-      {
-        accessorKey: 'letterCode',
-        header: 'کد',
-        cell: ({ row }) => <span className="text-[11px]">{row.original.letterCode}</span>,
+        accessorKey: 'companyName',
+        header: 'نام شرکت',
+        cell: ({ row }) => <span className="text-[11px] text-gray-700">{row.original.companyName}</span>,
       },
       {
         accessorKey: 'title',
@@ -137,17 +112,68 @@ export default function LettersTable({
         ),
       },
       {
-        accessorKey: 'companyName',
-        header: 'نام شرکت',
-        cell: ({ row }) => <span className="text-[11px] text-gray-700">{row.original.companyName}</span>,
+        accessorKey: 'letterCode',
+        header: 'کد',
+        cell: ({ row }) => <span className="text-[11px]">{row.original.letterCode}</span>,
       },
       {
-        accessorKey: 'symbol',
-        header: 'نماد',
-        cell: ({ row }) => <span className="font-bold text-[#0056b3] text-[11px]">{row.original.symbol}</span>,
+        accessorKey: 'sentDateTimeJalali',
+        header: 'زمان ارسال',
+        cell: ({ row }) => <span className="whitespace-nowrap text-[11px]">{toPersianDigits(row.original.sentDateTimeJalali || '')}</span>,
+      },
+      {
+        accessorKey: 'publishDateTimeUtc', 
+        header: 'زمان انتشار',
+        cell: ({ row }) => <span className="whitespace-nowrap text-[11px]">{toPersianDigits(row.original.publishDateTimeJalali)}</span>,
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <div
+            className="flex space-x-1 space-x-reverse items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MessageSquare className="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600" />
+            {row.original.hasAttachment && row.original.attachmentUrl ? (
+              <a
+                href={buildCodalUrl(row.original.attachmentUrl)}
+                target="_blank"
+                className="hover:scale-110 transition-transform"
+                rel="noreferrer"
+                aria-label="دانلود پیوست"
+                title="دانلود پیوست"
+              >
+                <Paperclip className="h-4 w-4 text-gray-500" />
+              </a>
+            ) : (
+              <div className="w-4" />
+            )}
+            {row.original.hasPdf ? (
+              <a href={buildCodalUrl(row.original.pdfUrl)} target="_blank" className="hover:scale-110 transition-transform">
+                <FileText className="h-4 w-4 text-red-500" />
+              </a>
+            ) : <div className="w-4" />}
+            {row.original.hasExcel ? (
+              <a href={row.original.excelUrl} target="_blank" className="hover:scale-110 transition-transform">
+                <FileSpreadsheet className="h-4 w-4 text-green-500" />
+              </a>
+            ) : <div className="w-4" />}
+            <Eye
+              className="h-4 w-4 text-gray-500 cursor-pointer hover:text-blue-500"
+              onClick={() => router.push(`/letters/${row.original.tracingNo}`)}
+            />
+            {row.original.tags && row.original.tags.length > 0 && (
+              <PlayCircle
+                className="h-5 w-5 text-purple-600 cursor-pointer hover:scale-110"
+                onClick={() => setSelectedTags(row.original.tags as any)}
+              />
+            )}
+          </div>
+        ),
       },
     ],
-    []
+    [router]
   );
 
   const table = useReactTable({
@@ -265,7 +291,8 @@ export default function LettersTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className={`hover:bg-[#e6f2ff] transition-colors border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]'}`}
+                  className={`hover:bg-[#e6f2ff] transition-colors border-b border-gray-200 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]'}`}
+                  onClick={() => router.push(`/letters/${row.original.tracingNo}`)}
                 >
                   {row.getVisibleCells().map((cell) => {
                     const isRightAligned = ['title', 'companyName'].includes(cell.column.id);

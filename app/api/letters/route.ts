@@ -37,6 +37,10 @@ export async function GET(request: NextRequest) {
 
     const query: any = {};
 
+    // Hard filter: only include letters that are relevant for this system.
+    // (Requested: keep only letterCode "ن-۱۰" and exclude other letter codes like 561513)
+    query.letterCode = 'ن-۱۰';
+
     // Search
     if (q) {
       // Using regex for flexibility if text index is not present
@@ -65,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     if (symbol) query.symbol = symbol;
     if (companyName) query.companyName = companyName;
-    if (letterCode) query.letterCode = letterCode;
+    // Ignore client-provided letterCode; server enforces the fixed one.
 
     if (tags) {
         const tagIds = tags.split(',').map(id => new ObjectId(id));
@@ -79,23 +83,33 @@ export async function GET(request: NextRequest) {
     if (letterTypeId) query.letterTypeId = parseInt(letterTypeId);
 
     // Date Range Filter
-    // Prefer publishDateTimeUtc if available, else fetchedAt
+    // NOTE: In some datasets `publishDateTimeUtc` may be missing for many documents.
+    // To avoid returning empty results, apply the range to (publishDateTimeUtc OR fetchedAt).
     if (dateFrom || dateTo) {
         const dateQuery: any = {};
-        if (dateFrom) dateQuery.$gte = new Date(dateFrom);
-        if (dateTo) dateQuery.$lte = new Date(dateTo);
-        
-        // This is tricky because we might have mixed data (some with UTC, some without)
-        // For simplicity in this query, we'll check publishDateTimeUtc if it exists, OR fetchedAt
-        // But MongoDB $or on ranges can be slow. 
-        // Best practice: Run migration first. 
-        // Here we will assume migration is done or we fallback to fetchedAt if sortBy is fetchedAt
-        
-        if (sortBy === 'publishDateTimeUtc') {
-             query.publishDateTimeUtc = dateQuery;
+      // Accept both full ISO datetime and YYYY-MM-DD.
+      // If YYYY-MM-DD is provided for dateTo, include the entire day by using $lt (next day).
+      if (dateFrom) {
+        dateQuery.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+          const end = new Date(dateTo);
+          end.setUTCDate(end.getUTCDate() + 1);
+          dateQuery.$lt = end;
         } else {
-             query.fetchedAt = dateQuery;
+          dateQuery.$lte = new Date(dateTo);
         }
+      }
+
+      // Match either publish date (preferred) or ingestion date (fallback)
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { publishDateTimeUtc: dateQuery },
+          { fetchedAt: dateQuery },
+        ],
+      });
     }
 
     // Sorting
@@ -127,6 +141,7 @@ export async function GET(request: NextRequest) {
             letterCode: 1,
             publishDateTimeJalali: 1,
             publishDateTimeUtc: 1,
+            sentDateTimeJalali: 1,
             fetchedAt: 1,
             hasPdf: 1,
             hasExcel: 1,
@@ -135,7 +150,12 @@ export async function GET(request: NextRequest) {
             hasXbrl: 1,
             underSupervision: 1,
             isEstimate: 1,
-            tags: 1
+            tags: 1,
+
+            url: 1,
+            pdfUrl: 1,
+            excelUrl: 1,
+            attachmentUrl: 1
         }) // Projection for list view
         .toArray(),
       collection.countDocuments(query)

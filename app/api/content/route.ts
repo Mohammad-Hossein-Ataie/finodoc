@@ -13,8 +13,24 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tagId = searchParams.get('tagId');
   const tagIdsRaw = searchParams.get('tagIds') || searchParams.get('tags');
+  const q = searchParams.get('q') || '';
+  const type = searchParams.get('type');
+  const category = searchParams.get('category');
 
   const query: any = {};
+
+  if (q.trim()) {
+    query.title = { $regex: q.trim(), $options: 'i' };
+  }
+
+  if (type) {
+    query.type = type;
+  }
+
+  if (category) {
+    query.category = category;
+  }
+
   if (tagIdsRaw) {
     const tagIds = tagIdsRaw.split(',').map(s => s.trim()).filter(Boolean);
     if (tagIds.length > 0) query.tags = { $all: tagIds };
