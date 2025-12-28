@@ -14,7 +14,7 @@ export async function GET(
 
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME);
-    const collection = db.collection(process.env.COLLECTION_NAME || 'codal_letters');
+    const collection = db.collection('codal_letters');
 
     const letter = await collection.findOne({ tracingNo: tracingNo });
 

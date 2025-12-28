@@ -27,7 +27,7 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-    const fixedLetterCode = 'ن-۱۰';
+        const fixedLetterCode = 'ن-۱۰';
 
     const parseGregorianDateOnlyToPersian = (dateOnly: string | null): DateObject | null => {
         if (!dateOnly) return null;
@@ -176,7 +176,6 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     if (filters.symbol) params.set('symbol', filters.symbol);
     if (filters.companyName) params.set('companyName', filters.companyName);
     if (filters.title) params.set('q', filters.title);
-        params.set('letterCode', fixedLetterCode);
     if (filters.isEstimate) params.set('isEstimate', 'true');
     if (filters.underSupervision) params.set('underSupervision', '1');
     if (filters.hasPdf) params.set('hasPdf', 'true');

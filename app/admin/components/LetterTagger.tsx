@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,6 +27,7 @@ export default function LetterTagger() {
   const [tags, setTags] = useState<any[]>([]);
   const [selectedLetter, setSelectedLetter] = useState<any>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [initialTags, setInitialTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [page, setPage] = useState(1);
@@ -68,19 +70,50 @@ export default function LetterTagger() {
     setSelectedLetter(letter);
     // Pre-select existing tags if available (need to fetch or have in letter object)
     // Assuming letter.tags is populated or array of IDs
-    setSelectedTags(letter.tags || []);
+    const rawTags = Array.isArray(letter?.tags) ? letter.tags : [];
+    const normalizedTags = rawTags
+      .map((t: any) => {
+        if (!t) return '';
+        if (typeof t === 'string') return t;
+        if (typeof t?.toString === 'function') return t.toString();
+        if (typeof t?.$oid === 'string') return t.$oid;
+        return String(t);
+      })
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+    setSelectedTags(normalizedTags);
+    setInitialTags(normalizedTags);
   };
 
   const saveTags = async () => {
     if (!selectedLetter) return;
-    
-    await fetch(`/api/letters/${selectedLetter.tracingNo}/tags`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tags: selectedTags }),
-    });
+
+    const initialSet = new Set(initialTags);
+    const selectedSet = new Set(selectedTags);
+
+    const toAdd = selectedTags.filter((id) => !initialSet.has(id));
+    const toRemove = initialTags.filter((id) => !selectedSet.has(id));
+
+    if (toAdd.length > 0) {
+      await fetch(`/api/letters/${selectedLetter.tracingNo}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: toAdd }),
+      });
+    }
+
+    if (toRemove.length > 0) {
+      await fetch(`/api/letters/${selectedLetter.tracingNo}/tags`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: toRemove }),
+      });
+    }
 
     setSelectedLetter(null);
+    setSelectedTags([]);
+    setInitialTags([]);
     fetchLetters({ q: search, page: 1 }); // Refresh
   };
 
@@ -109,7 +142,10 @@ export default function LetterTagger() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="text-right">کد اطلاعیه</TableHead>
+              <TableHead className="text-right">کد نامه</TableHead>
               <TableHead className="text-right">نماد</TableHead>
+              <TableHead className="text-right">شرکت</TableHead>
               <TableHead className="text-right">عنوان</TableHead>
               <TableHead className="text-right">تاریخ</TableHead>
               <TableHead className="text-right">تگ‌ها</TableHead>
@@ -121,26 +157,43 @@ export default function LetterTagger() {
               ? Array.from({ length: pageSize }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-36" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-96" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-14" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-56" /></TableCell>
                   </TableRow>
                 ))
               : letters.map((letter) => (
                   <TableRow key={letter.tracingNo}>
+                    <TableCell className="font-medium">{letter.tracingNo ?? '-'}</TableCell>
+                    <TableCell>{letter.letterCode ?? '-'}</TableCell>
                     <TableCell>{letter.symbol}</TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={letter.companyName || ''}>
+                      {letter.companyName || '-'}
+                    </TableCell>
                     <TableCell>{letter.title}</TableCell>
                     <TableCell>{formatLetterDate(letter)}</TableCell>
                     <TableCell>
                         {letter.tags && letter.tags.length > 0 ? (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                {letter.tags.length} تگ
-                            </span>
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded whitespace-nowrap inline-flex items-center">
+                          {letter.tags.length} تگ
+                        </span>
                         ) : '-'}
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => openTagModal(letter)}>ویرایش تگ</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" className="w-28 justify-center" asChild>
+                          <Link href={`/letters/${letter.tracingNo}`} target="_blank" rel="noopener noreferrer">
+                            نمای اطلاعیه
+                          </Link>
+                        </Button>
+                        <Button size="sm" className="w-28 justify-center" onClick={() => openTagModal(letter)}>
+                          ویرایش تگ
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -158,20 +211,58 @@ export default function LetterTagger() {
       {selectedLetter && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg max-w-lg w-full">
-                <h3 className="font-bold mb-4">تگ‌گذاری: {selectedLetter.symbol}</h3>
-                <div className="flex flex-wrap gap-2 mb-6 max-h-60 overflow-y-auto">
-                    {tags.map(tag => (
-                        <div 
-                            key={tag._id} 
+                <div className="mb-4 space-y-1">
+                  <h3 className="font-bold">تگ‌گذاری: {selectedLetter.symbol}</h3>
+                  <div className="text-sm text-muted-foreground">
+                    کد اطلاعیه: {selectedLetter.tracingNo ?? '-'} · کد نامه: {selectedLetter.letterCode ?? '-'}
+                  </div>
+                  <div className="text-sm text-muted-foreground truncate" title={selectedLetter.title || ''}>
+                    {selectedLetter.title || ''}
+                  </div>
+                  <div className="pt-2">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/letters/${selectedLetter.tracingNo}`} target="_blank" rel="noopener noreferrer">
+                        نمای اطلاعیه
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="text-sm font-medium mb-2">همه تگ‌ها</div>
+                  <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto">
+                      {tags.map((tag) => {
+                        const isSelected = selectedTags.includes(tag._id);
+                        return (
+                          <div
+                            key={tag._id}
                             onClick={() => toggleTag(tag._id)}
-                            className={`cursor-pointer px-3 py-1 rounded border ${selectedTags.includes(tag._id) ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-                        >
-                            {tag.name}
-                        </div>
-                    ))}
+                            className={`cursor-pointer px-3 py-1 rounded border whitespace-nowrap inline-flex items-center gap-2 ${isSelected ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
+                            role="button"
+                            aria-pressed={isSelected}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') toggleTag(tag._id);
+                            }}
+                          >
+                            <span>{tag.name}</span>
+                            {isSelected ? <span className="text-white/90">×</span> : null}
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setSelectedLetter(null)}>انصراف</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedLetter(null);
+                        setSelectedTags([]);
+                        setInitialTags([]);
+                      }}
+                    >
+                      انصراف
+                    </Button>
                     <Button onClick={saveTags}>ذخیره</Button>
                 </div>
             </div>

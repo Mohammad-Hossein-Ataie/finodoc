@@ -37,7 +37,6 @@ export default function LettersPage() {
     hasXbrl: searchParams.get('hasXbrl') === 'true' || undefined,
     isEstimate: searchParams.get('isEstimate') === 'true' || undefined,
     underSupervision: searchParams.get('underSupervision') === '1' || undefined,
-    letterCode: searchParams.get('letterCode') || undefined,
     symbol: searchParams.get('symbol') || undefined,
     companyName: searchParams.get('companyName') || undefined,
     tags: searchParams.get('tags') || undefined,

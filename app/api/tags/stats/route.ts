@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import Tag from '@/lib/models/Tag';
-import Content from '@/lib/models/Content';
+import Letter from '@/lib/models/Letter';
 
 export async function GET(_req: NextRequest) {
   const session = await getSession();
@@ -14,7 +14,8 @@ export async function GET(_req: NextRequest) {
 
   const allTags = await Tag.find({}).select({ name: 1, group: 1 }).lean();
 
-  const counts = await Content.aggregate([
+  // Count number of letters (codal_letters) that have each tag.
+  const counts = await Letter.aggregate([
     { $unwind: '$tags' },
     { $group: { _id: '$tags', count: { $sum: 1 } } },
   ]);
@@ -29,6 +30,9 @@ export async function GET(_req: NextRequest) {
       _id: String(t._id),
       name: t.name,
       group: t.group || 'General',
+      // Backward-compatible: older UI expects contentCount.
+      // New UI should use letterCount.
+      letterCount: countMap.get(String(t._id)) || 0,
       contentCount: countMap.get(String(t._id)) || 0,
     }))
     .sort((a, b) => {

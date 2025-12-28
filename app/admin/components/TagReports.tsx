@@ -12,7 +12,7 @@ import Pagination from '@/components/letters/Pagination';
 
 type Tag = { _id: string; name: string; group?: string };
 
-type TagStat = Tag & { contentCount: number };
+type TagStat = Tag & { letterCount?: number; contentCount?: number };
 
 type LettersResponse = {
   items: any[];
@@ -40,6 +40,8 @@ export default function TagReports() {
   const [stats, setStats] = useState<TagStat[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [hasFetchedTags, setHasFetchedTags] = useState(false);
+  const [hasFetchedStats, setHasFetchedStats] = useState(false);
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [search, setSearch] = useState('');
@@ -58,7 +60,7 @@ export default function TagReports() {
 
   const tagItems = useMemo(() => {
     if (stats.length > 0) return stats;
-    return tags.map((t) => ({ ...t, contentCount: 0 }));
+    return tags.map((t) => ({ ...t, letterCount: 0, contentCount: 0 }));
   }, [stats, tags]);
 
   const availableGroups = useMemo(() => {
@@ -78,7 +80,9 @@ export default function TagReports() {
 
     map.forEach((list) => {
       list.sort((a: TagStat, b: TagStat) => {
-        const byCount = (b.contentCount || 0) - (a.contentCount || 0);
+        const aCount = a.letterCount ?? a.contentCount ?? 0;
+        const bCount = b.letterCount ?? b.contentCount ?? 0;
+        const byCount = bCount - aCount;
         if (byCount !== 0) return byCount;
         return a.name.localeCompare(b.name, 'fa');
       });
@@ -97,6 +101,7 @@ export default function TagReports() {
       }
       const data = await res.json();
       setTags(Array.isArray(data) ? data : []);
+      setHasFetchedTags(true);
     } finally {
       setLoadingTags(false);
     }
@@ -112,6 +117,7 @@ export default function TagReports() {
       }
       const data = await res.json();
       setStats(Array.isArray(data) ? data : []);
+      setHasFetchedStats(true);
     } finally {
       setLoadingStats(false);
     }
@@ -147,6 +153,8 @@ export default function TagReports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const showTagReportSkeleton = !hasFetchedTags || !hasFetchedStats;
+
   const toggleTag = (id: string) => {
     setLettersResp((prev) => ({ ...prev, page: 1 }));
     setSelectedTags((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
@@ -179,7 +187,7 @@ export default function TagReports() {
         </div>
 
         <div className="space-y-3">
-          {loadingStats && groupedTags.length === 0
+          {showTagReportSkeleton
             ? Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i}>
                   <CardHeader className="pb-3">
@@ -193,22 +201,23 @@ export default function TagReports() {
                 </Card>
               ))
             : groupedTags.map(([group, list]) => {
-                const totalContent = list.reduce((acc, t) => acc + (t.contentCount || 0), 0);
-                const maxInGroup = Math.max(1, ...list.map((t) => t.contentCount || 0));
+              const totalLetters = list.reduce((acc, t) => acc + (t.letterCount ?? t.contentCount ?? 0), 0);
+              const maxInGroup = Math.max(1, ...list.map((t) => t.letterCount ?? t.contentCount ?? 0));
 
                 return (
                   <Card key={group}>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg">{group}</CardTitle>
                       <div className="text-sm text-muted-foreground">
-                        {list.length} تگ · {totalContent} محتوا
+                        {list.length} تگ · {totalLetters} اطلاعیه
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
                         {list.map((t) => {
                           const isSelected = selectedTagSet.has(t._id);
-                          const pct = Math.round(((t.contentCount || 0) / maxInGroup) * 100);
+                          const tagCount = t.letterCount ?? t.contentCount ?? 0;
+                          const pct = Math.round((tagCount / maxInGroup) * 100);
                           return (
                             <div
                               key={t._id}
@@ -217,7 +226,7 @@ export default function TagReports() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="truncate font-medium">{t.name}</div>
-                                  <div className="shrink-0 text-sm text-muted-foreground">{t.contentCount}</div>
+                                  <div className="shrink-0 text-sm text-muted-foreground">{tagCount}</div>
                                 </div>
                                 <div className="mt-2 h-2 w-full rounded bg-muted">
                                   <div
@@ -264,7 +273,7 @@ export default function TagReports() {
           <div>
             <div className="text-sm mb-2">تگ‌ها</div>
             <div className="space-y-2">
-              {(loadingTags || loadingStats) && groupedTags.length === 0 ? (
+              {showTagReportSkeleton ? (
                 <div className="grid gap-2">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-10 w-full" />

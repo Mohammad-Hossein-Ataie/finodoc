@@ -33,13 +33,13 @@ export async function GET(request: NextRequest) {
 
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME);
-    const collection = db.collection(process.env.COLLECTION_NAME || 'codal_letters');
+    // Read from the lightweight, app-facing collection.
+    const collection = db.collection('codal_letters');
 
     const query: any = {};
 
-    // Hard filter: only include letters that are relevant for this system.
-    // (Requested: keep only letterCode "ن-۱۰" and exclude other letter codes like 561513)
-    query.letterCode = 'ن-۱۰';
+    // Optional client filter
+    if (letterCode) query.letterCode = letterCode;
 
     // Search
     if (q) {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     if (symbol) query.symbol = symbol;
     if (companyName) query.companyName = companyName;
-    // Ignore client-provided letterCode; server enforces the fixed one.
+
 
     if (tags) {
         const tagIds = tags.split(',').map(id => new ObjectId(id));

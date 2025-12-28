@@ -55,9 +55,11 @@ export default function LoginPage() {
       if (res.ok) {
         // Redirect based on role or to home
         if (data.user.role === 'admin') {
-            router.push('/admin');
+            router.replace('/admin');
+            router.refresh();
         } else {
-            router.push('/');
+            router.replace('/');
+            router.refresh();
         }
       } else {
         setError(data.error || 'Invalid code');

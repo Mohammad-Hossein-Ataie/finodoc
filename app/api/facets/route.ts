@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME);
-    const collection = db.collection(process.env.COLLECTION_NAME || 'codal_letters');
+    const collection = db.collection('codal_letters');
 
     // We can run multiple aggregations or counts in parallel
     const [

@@ -49,7 +49,10 @@ export default function AdminDashboard() {
             <Button
               variant="outline"
               onClick={() => {
-                fetch('/api/auth/me', { method: 'POST' }).then(() => router.push('/'));
+                fetch('/api/auth/me', { method: 'POST' }).then(() => {
+                  router.replace('/');
+                  router.refresh();
+                });
               }}
             >
               خروج
