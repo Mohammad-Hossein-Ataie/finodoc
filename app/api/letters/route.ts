@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     const isEstimate = searchParams.get('isEstimate') === 'true';
     const underSupervision = searchParams.get('underSupervision');
     const symbol = searchParams.get('symbol');
+    const marketName = searchParams.get('marketName');
+    const boardName = searchParams.get('boardName');
+    const industry = searchParams.get('industry');
     const companyName = searchParams.get('companyName');
     const letterCode = searchParams.get('letterCode');
     const dateFrom = searchParams.get('dateFrom');
@@ -68,6 +71,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (symbol) query.symbol = symbol;
+  if (marketName) query.marketName = marketName;
+  if (boardName) query.boardName = boardName;
+  if (industry) query.industry = industry;
     if (companyName) query.companyName = companyName;
 
 
@@ -76,7 +82,7 @@ export async function GET(request: NextRequest) {
         query.tags = { $all: tagIds };
     }
 
-    // New Filters for industry and letter types
+    // Legacy Filters for older datasets
     if (industryId) query.industryId = parseInt(industryId);
     if (letterCategoryCode) query.letterCategoryCode = parseInt(letterCategoryCode);
     if (publisherTypeCode) query.publisherTypeCode = parseInt(publisherTypeCode);
@@ -151,6 +157,10 @@ export async function GET(request: NextRequest) {
             underSupervision: 1,
             isEstimate: 1,
             tags: 1,
+
+            marketName: 1,
+            boardName: 1,
+            industry: 1,
 
             url: 1,
             pdfUrl: 1,

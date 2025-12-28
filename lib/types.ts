@@ -28,6 +28,10 @@ export interface CodalLetter {
   underSupervision: number;
   url: string;
   xbrlUrl: string;
+  // Enriched fields (newer dataset)
+  marketName?: string;
+  boardName?: string;
+  industry?: string;
   tags?: string[];
 }
 
@@ -60,6 +64,9 @@ export interface FilterParams {
   underSupervision?: boolean;
   isEstimate?: boolean;
   symbol?: string;
+  marketName?: string;
+  boardName?: string;
+  industry?: string;
   companyName?: string;
   letterCode?: string;
   dateFrom?: string;

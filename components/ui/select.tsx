@@ -48,6 +48,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const options = React.useMemo(() => parseOptions(children), [children]);
 
     const [open, setOpen] = React.useState(false);
+    const [searchQuery, setSearchQuery] = React.useState('');
     const [internalValue, setInternalValue] = React.useState<string>(
       typeof defaultValue === 'string' ? defaultValue : ''
     );
@@ -59,9 +60,16 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       options[0]?.label ??
       '';
 
+    const filteredOptions = React.useMemo(() => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return options;
+      return options.filter((o) => o.label.toLowerCase().includes(q));
+    }, [options, searchQuery]);
+
     const rootRef = React.useRef<HTMLDivElement>(null);
     const triggerRef = React.useRef<HTMLButtonElement>(null);
     const listRef = React.useRef<HTMLDivElement>(null);
+    const searchRef = React.useRef<HTMLInputElement>(null);
     const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
     const [highlightedIndex, setHighlightedIndex] = React.useState(() => {
@@ -71,9 +79,17 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
     React.useEffect(() => {
       if (!open) return;
-      const idx = options.findIndex((o) => o.value === currentValue);
+      const idx = filteredOptions.findIndex((o) => o.value === currentValue);
       setHighlightedIndex(idx >= 0 ? idx : 0);
-    }, [open, currentValue, options]);
+    }, [open, currentValue, filteredOptions]);
+
+    React.useEffect(() => {
+      if (!open) {
+        setSearchQuery('');
+        return;
+      }
+      queueMicrotask(() => searchRef.current?.focus());
+    }, [open]);
 
     React.useEffect(() => {
       if (!open) return;
@@ -89,12 +105,6 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         document.removeEventListener('touchstart', handler);
       };
     }, [open]);
-
-    React.useEffect(() => {
-      if (!open) return;
-      const btn = optionRefs.current[highlightedIndex];
-      btn?.focus();
-    }, [open, highlightedIndex]);
 
     const commitValue = (nextValue: string) => {
       if (disabled) return;
@@ -114,7 +124,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setOpen(true);
-        setHighlightedIndex((i) => Math.min(i + 1, Math.max(0, options.length - 1)));
+        setHighlightedIndex((i) => Math.min(i + 1, Math.max(0, filteredOptions.length - 1)));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setOpen(true);
@@ -124,6 +134,30 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         setOpen((v) => !v);
       } else if (e.key === 'Escape') {
         setOpen(false);
+      }
+    };
+
+    const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex((i) => Math.min(i + 1, Math.max(0, filteredOptions.length - 1)));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const opt = filteredOptions[highlightedIndex];
+        if (opt && !opt.disabled) commitValue(opt.value);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
       }
     };
 
@@ -169,7 +203,21 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             role="listbox"
             className="absolute z-50 mt-1 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-sm max-h-64"
           >
-            {options.map((opt, idx) => {
+            <div className="p-2 border-b border-input">
+              <input
+                ref={searchRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={onSearchKeyDown}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none"
+                placeholder="جستجو..."
+              />
+            </div>
+
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm opacity-70 text-right">موردی یافت نشد</div>
+            ) : (
+            filteredOptions.map((opt, idx) => {
               const isSelected = opt.value === currentValue;
               const isDisabled = Boolean(opt.disabled);
 
@@ -194,7 +242,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     }
                     if (e.key === 'ArrowDown') {
                       e.preventDefault();
-                      setHighlightedIndex((i) => Math.min(i + 1, options.length - 1));
+                      setHighlightedIndex((i) => Math.min(i + 1, filteredOptions.length - 1));
                       return;
                     }
                     if (e.key === 'ArrowUp') {
@@ -218,7 +266,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                   <span className="min-w-0 flex-1 truncate">{opt.label}</span>
                 </button>
               );
-            })}
+            }))}
           </div>
         ) : null}
       </div>

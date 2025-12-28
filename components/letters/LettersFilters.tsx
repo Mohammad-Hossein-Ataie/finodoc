@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Filter, Loader2 } from 'lucide-react';
-import { INDUSTRY_TYPES, LETTER_CATEGORIES, COMPANY_NATURE, COMPANY_TYPE } from '@/lib/filterConstants';
+import { LETTER_CATEGORIES, COMPANY_NATURE, COMPANY_TYPE } from '@/lib/filterConstants';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
@@ -17,6 +17,15 @@ type TagItem = {
     _id: string;
     name: string;
     group?: string;
+};
+
+type DropdownOptions = {
+    _id: 'main_options' | string;
+    updatedAt?: string | { $date: string } | Date;
+    markets?: string[];
+    boards?: string[];
+    industries?: string[];
+    symbols?: string[];
 };
 
 interface LettersFiltersProps {
@@ -57,8 +66,14 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
     const [availableTags, setAvailableTags] = useState<TagItem[]>([]);
     const [tagsLoading, setTagsLoading] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
+
+    const [dropdownOptions, setDropdownOptions] = useState<DropdownOptions | null>(null);
+    const [dropdownLoading, setDropdownLoading] = useState(false);
+
   const [filters, setFilters] = useState({
     symbol: '',
+        boardName: '',
+        industry: '',
     companyName: '',
     title: '',
     letterCode: '',
@@ -145,6 +160,8 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
 
     setFilters({
       symbol: searchParams.get('symbol') || '',
+        boardName: searchParams.get('boardName') || '',
+        industry: searchParams.get('industry') || '',
       companyName: searchParams.get('companyName') || '',
       title: searchParams.get('q') || '',
             letterCode: fixedLetterCode,
@@ -171,9 +188,33 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
         setDateToPicker(parseGregorianDateOnlyToPersian(searchParams.get('dateTo')));
   }, [searchParams]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadDropdowns = async () => {
+            setDropdownLoading(true);
+            try {
+                const res = await fetch('/api/dropdown-options');
+                if (!res.ok) return;
+                const data = (await res.json()) as DropdownOptions;
+                if (cancelled) return;
+                setDropdownOptions(data);
+            } finally {
+                if (!cancelled) setDropdownLoading(false);
+            }
+        };
+
+        loadDropdowns();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (filters.symbol) params.set('symbol', filters.symbol);
+        if (filters.boardName) params.set('boardName', filters.boardName);
+        if (filters.industry) params.set('industry', filters.industry);
     if (filters.companyName) params.set('companyName', filters.companyName);
     if (filters.title) params.set('q', filters.title);
     if (filters.isEstimate) params.set('isEstimate', 'true');
@@ -212,12 +253,31 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
       <CardContent className="p-4 space-y-4">
             <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-600">نماد:</label>
-                <Input 
-                    className="h-9 text-sm bg-white" 
-                    placeholder="نماد شرکت را جستجو کنید..." 
+                <Select
                     value={filters.symbol}
-                    onChange={(e) => setFilters({...filters, symbol: e.target.value})}
-                />
+                    onChange={(e) => setFilters({ ...filters, symbol: e.target.value })}
+                    disabled={dropdownLoading}
+                >
+                    <option value="">همه موارد</option>
+                    {dropdownLoading && <option value="" disabled>در حال بارگذاری...</option>}
+                    {(dropdownOptions?.symbols || []).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                    ))}
+                </Select>
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">نام بازار (تابلو):</label>
+                <Select
+                    value={filters.boardName}
+                    onChange={(e) => setFilters({ ...filters, boardName: e.target.value })}
+                    disabled={dropdownLoading}
+                >
+                    <option value="">همه موارد</option>
+                    {dropdownLoading && <option value="" disabled>در حال بارگذاری...</option>}
+                    {(dropdownOptions?.boards || []).map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                    ))}
+                </Select>
             </div>
             <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-600">نام شرکت:</label>
@@ -229,14 +289,16 @@ export default function LettersFilters({ isLoading }: LettersFiltersProps) {
                 />
             </div>
             <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">نوع صنعت:</label>
-                <Select 
-                    value={filters.industryId}
-                    onChange={(e) => setFilters({...filters, industryId: e.target.value})}
+                <label className="text-xs font-bold text-gray-600">نام صنعت:</label>
+                <Select
+                    value={filters.industry}
+                    onChange={(e) => setFilters({ ...filters, industry: e.target.value })}
+                    disabled={dropdownLoading}
                 >
                     <option value="">همه موارد</option>
-                    {INDUSTRY_TYPES.map(industry => (
-                        <option key={industry.Id} value={industry.Id}>{industry.Name}</option>
+                    {dropdownLoading && <option value="" disabled>در حال بارگذاری...</option>}
+                    {(dropdownOptions?.industries || []).map((i) => (
+                        <option key={i} value={i}>{i}</option>
                     ))}
                 </Select>
             </div>
